@@ -1,5 +1,7 @@
 use anyhow::Result;
+use chrono::{DateTime, Local};
 use serde::Deserialize;
+use serde_with::TimestampMilliSeconds;
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -19,10 +21,12 @@ pub struct ServingLineResp {
     pub diva_id: String,
 }
 
+#[serde_with::serde_as]
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DepartureResp {
-    pub departure_time: i64,
+    #[serde_as(as = "TimestampMilliSeconds<i64>")]
+    pub departure_time: DateTime<Local>,
     pub product: String,
     pub label: String,
     pub destination: String,

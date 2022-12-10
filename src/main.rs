@@ -1,24 +1,25 @@
 use anyhow::Result;
-use mvg_cli_rs::api::{get_station,StationResponse, get_departures, get_notifications, get_routes};
+use mvg_cli_rs::api::{
+    get_departures, get_notifications, get_routes, get_station, StationResponse,
+};
 
 #[tokio::main]
-async fn main() -> Result<()>{
+async fn main() -> Result<()> {
+    let s = get_station("uni").await?;
+    let r = &s.locations[0];
 
-    // let s = get_station("uni").await?;
-    // let r = &s.locations[0];
-    //
-    // let i = match r {
-    //     StationResponse::Station(x) => x.id.clone(),
-    //     _ => String::from("no"),
-    // };
-    // println!("{}", i);
-    //
-    // let d = get_departures(&i).await?;
-    // println!("{:#?}", d);
-    // let n = get_notifications().await?;
-    // println!("{:#?}", n);
+    let i = match r {
+        StationResponse::Station(x) => x.id.clone(),
+        _ => String::from("no"),
+    };
+    println!("{}", i);
 
-    let from = get_station("dachau").await?;
+    let d = get_departures(&i).await?;
+    println!("Depatures: {:#?}", d.departures[0].departure_time.time());
+    let n = get_notifications().await?;
+    println!("{:#?}", n[0].active_duration);
+
+    let from = get_station("ostbahnhof").await?;
     let from_id = if let StationResponse::Station(x) = &from.locations[0] {
         x.id.clone()
     } else {
@@ -34,9 +35,13 @@ async fn main() -> Result<()>{
     };
     println!("{}", to_id);
 
-    let routes = get_routes(&from_id, &to_id, None, None, None, None, None, None, None, None).await?;
-    println!("{:#?}", routes);
+    let routes = get_routes(
+        &from_id, &to_id, None, None, None, None, None, None, None, None,
+    )
+    .await?;
 
+    println!("{:#?}", routes.connection_list[0].departure.time());
+    println!("{:#?}", routes.connection_list[0].arrival.time());
 
     Ok(())
 }

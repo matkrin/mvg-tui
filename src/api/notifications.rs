@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::{DateTime, Local};
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -39,8 +40,8 @@ pub struct NotificationStation {
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Duration {
-    pub from_date: String,
-    pub to_date: Option<String>,
+    pub from_date: DateTime<Local>,
+    pub to_date: Option<DateTime<Local>>,
 }
 
 #[derive(Deserialize, Debug)]

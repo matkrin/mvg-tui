@@ -1,7 +1,8 @@
 use crate::api::station::StationResp;
 use anyhow::Result;
+use chrono::{Utc, DateTime, Local};
 use serde::Deserialize;
-use chrono::Utc;
+use serde_with::TimestampMilliSeconds;
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -9,6 +10,7 @@ pub struct ConnectionList {
     pub connection_list: Vec<Connection>,
 }
 
+#[serde_with::serde_as]
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Connection {
@@ -20,8 +22,10 @@ pub struct Connection {
     pub zoom_notice_to_elevator: bool,
     pub from: StationResp,
     pub to: StationResp,
-    pub departure: i64, //date,
-    pub arrival: i64,   //date,
+    #[serde_as(as = "TimestampMilliSeconds<i64>")]
+    pub departure: DateTime<Local>,
+    #[serde_as(as = "TimestampMilliSeconds<i64>")]
+    pub arrival: DateTime<Local>,
     pub connection_part_list: Vec<ConnectionPart>,
     pub efa_ticket_ids: Vec<String>,
     pub server_id: i64,
@@ -31,6 +35,7 @@ pub struct Connection {
     pub old_tarif: bool,
 }
 
+#[serde_with::serde_as]
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionPart {
@@ -40,8 +45,10 @@ pub struct ConnectionPart {
     pub path: Vec<LocationLongLat>,
     pub path_description: Vec<PathDescription>,
     pub interchange_path: Vec<InterchangePath>,
-    pub departure: i64, // date
-    pub arrival: i64,   // date
+    #[serde_as(as = "TimestampMilliSeconds<i64>")]
+    pub departure: DateTime<Local>,
+    #[serde_as(as = "TimestampMilliSeconds<i64>")]
+    pub arrival: DateTime<Local>,
     pub delay: Option<i32>,
     pub arr_delay: Option<i32>,
     pub cancelled: bool,
@@ -71,11 +78,13 @@ pub struct ConnectionPart {
     pub occupancy: Option<String>,
 }
 
+#[serde_with::serde_as]
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Stop {
     pub location: StationResp,
-    pub time: i64, //date,
+    #[serde_as(as = "TimestampMilliSeconds<i64>")]
+    pub time: DateTime<Local>,
     pub delay: i32,
     pub arr_delay: i32,
     pub cancelled: bool,
@@ -90,14 +99,18 @@ pub struct LocationLongLat {
     pub longitude: f64,
 }
 
+#[serde_with::serde_as]
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectionPartNotification {
     pub title: String,
     pub description: String,
-    pub publication: i32, //date,
-    pub valid_from: i32,  //date,
-    pub valid_to: i32,    //date,
+    #[serde_as(as = "TimestampMilliSeconds<i64>")]
+    pub publication: DateTime<Local>,
+    #[serde_as(as = "TimestampMilliSeconds<i64>")]
+    pub valid_from: DateTime<Local>,
+    #[serde_as(as = "TimestampMilliSeconds<i64>")]
+    pub valid_to: DateTime<Local>,
     pub id: String,
     #[serde(rename = "type")]
     pub type_name: String,
@@ -134,24 +147,17 @@ pub struct SapTicketMappingDtos {
     pub efa_id: String,
     #[serde(rename = "type")]
     pub type_name: String,
-    pub available_ATM: bool,
-    pub available_mobile_ATM: bool,
-    pub available_APP: bool,
+    #[serde(rename = "availableATM")]
+    pub available_atm: bool,
+    #[serde(rename = "availableMobileATM")]
+    pub available_mobile_atm: bool,
+    #[serde(rename = "availableAPP")]
+    pub available_app: bool,
     pub ticket_aggregation_group: String,
     pub tarif_level: String,
     pub zones: String,
 }
 
-// export struct getroutesoptions {
-//     epoch_time?: date,
-//     arrival?: bool,
-//     sap_ticket?: bool,
-//     include_ubahn?: bool,
-//     include_bus?: bool,
-//     include_tram?: bool,
-//     include_sbahn?: bool,
-//     include_taxi?: bool,
-// }
 pub async fn get_routes(
     from_station_id: &str,
     to_station_id: &str,
@@ -178,7 +184,6 @@ pub async fn get_routes(
 ",
         from_station_id,
         to_station_id,
-        // 1670671097508_i64,
         time.unwrap_or(Utc::now().timestamp_millis()),
         arrival.unwrap_or(false),
         sap_ticket.unwrap_or(false),
@@ -188,7 +193,6 @@ pub async fn get_routes(
         include_sbahn.unwrap_or(true),
         include_taxi.unwrap_or(false),
     );
-    println!("{}", url);
     let resp = reqwest::get(url).await?.json::<ConnectionList>().await?;
     Ok(resp)
 }

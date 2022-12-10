@@ -28,8 +28,8 @@ pub struct StationResp {
     pub has_live_data: bool,
     pub has_zoom_data: bool,
     pub products: Vec<String>,
-    pub efa_lon: Option<f64>, //opt
-    pub efa_lat: Option<f64>, // opt
+    pub efa_lon: Option<f64>,
+    pub efa_lat: Option<f64>,
     pub link: Option<String>,
     pub tariff_zones: Option<String>,
     pub occupancy: String,
