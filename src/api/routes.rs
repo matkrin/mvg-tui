@@ -1,6 +1,6 @@
 use crate::api::station::StationResp;
 use anyhow::Result;
-use chrono::{Utc, DateTime, Local};
+use chrono::{DateTime, Local, Utc};
 use serde::Deserialize;
 use serde_with::TimestampMilliSeconds;
 

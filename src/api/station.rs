@@ -59,10 +59,10 @@ pub struct AddressResp {
 }
 
 pub async fn get_station(station_search: &str) -> Result<Locations> {
-    let url = format!("https://www.mvg.de/api/fahrinfo/location/query?q={}", station_search);
-    let resp = reqwest::get(url)
-        .await?
-        .json::<Locations>()
-        .await?;
+    let url = format!(
+        "https://www.mvg.de/api/fahrinfo/location/query?q={}",
+        station_search
+    );
+    let resp = reqwest::get(url).await?.json::<Locations>().await?;
     Ok(resp)
 }
