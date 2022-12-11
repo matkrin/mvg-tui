@@ -1,14 +1,16 @@
 use std::io;
 
 use anyhow::Result;
+use chrono::{Utc, DateTime};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use mvg_cli_rs::api::{
-    get_departures, get_notifications, get_routes, get_station, StationResponse,
+    get_departures, get_notifications, get_routes, get_station, StationResponse, routes::{ConnectionList, Connection},
 };
+use reqwest::get;
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
@@ -74,7 +76,7 @@ async fn main() -> Result<()> {
     // thread::sleep(Duration::from_millis(5000));
 
     let app = App::default();
-    let res = run_app(&mut terminal, app);
+    let res = run_app(&mut terminal, app).await?;
 
     disable_raw_mode()?;
     execute!(
@@ -84,9 +86,9 @@ async fn main() -> Result<()> {
     )?;
     terminal.show_cursor()?;
 
-    if let Err(err) = res {
-        println!("{:?}", err)
-    }
+    // if let Err(err) = res {
+    //     println!("{:?}", err)
+    // }
 
     Ok(())
 }
@@ -109,6 +111,7 @@ struct App {
     input_destination: String,
     start: String,
     destination: String,
+    routes: Vec<Connection>,
     messages: Vec<String>,
 }
 
@@ -121,6 +124,7 @@ impl Default for App {
             input_destination: String::new(),
             start: String::new(),
             destination: String::new(),
+            routes: Vec::new(),
             messages: Vec::new(),
         }
     }
@@ -138,21 +142,34 @@ impl App {
     fn focus_routes(&mut self) {
         self.focus = Focus::Routes;
     }
+
+    async fn fetch_routes(&mut self) -> Result<()> {
+        let from = get_station(&self.start).await?;
+        let from_id = if let StationResponse::Station(x) = &from.locations[0] {
+            x.id.clone() } else { "".to_string() };
+        let to = get_station(&self.destination).await?;
+        let to_id = if let StationResponse::Station(x) = &to.locations[0] {
+            x.id.clone() } else { "". to_string() };
+        let routes = get_routes(&from_id, &to_id, None, None, None, None, None, None, None, None).await?;
+        self.routes = routes.connection_list;
+        Ok(())
+    }
 }
 
-fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<()> {
+async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<()> {
     loop {
         terminal.draw(|f| ui(f, &app))?;
 
         if let Event::Key(key) = event::read()? {
             match app.input_mode {
                 InputMode::Normal => match key.code {
-                    //quit app
-                    KeyCode::Char('q') => return Ok(()),
+                    KeyCode::Char('q') => return Ok(()),  // quits app
                     KeyCode::Char('i') => app.input_mode = InputMode::Editing,
-                    KeyCode::Char('l') => app.focus_destination(),
                     KeyCode::Char('h') => app.focus_start(),
+                    KeyCode::Char('l') => app.focus_destination(),
                     KeyCode::Char('j') => app.focus_routes(),
+                    KeyCode::Char('k') => app.focus_start(),
+                    KeyCode::Char('f') => app.fetch_routes().await?,
                     _ => {}
                 },
                 InputMode::Editing => match key.code {
@@ -297,19 +314,27 @@ fn routes_table(app: &App) -> Table {
         .height(1)
         .bottom_margin(1);
 
-    let items = vec![
-        vec!["one", "two", "three", "four", "five", "six"],
-        vec!["one", "two", "three", "four", "five", "six"],
-        vec!["one", "two", "three", "four", "five", "six"],
-        vec!["one", "two", "three", "four", "five", "six"],
-        vec!["one", "two", "three", "four", "five", "six"],
-    ];
+    // let items = vec![
+    //     vec!["one", "two", "three", "four", "five", "six"],
+    //     vec!["one", "two", "three", "four", "five", "six"],
+    //     vec!["one", "two", "three", "four", "five", "six"],
+    //     vec!["one", "two", "three", "four", "five", "six"],
+    //     vec!["one", "two", "three", "four", "five", "six"],
+    // ];
+    let items = &app.routes;
 
     let rows = items
         .iter()
         .map(|item| {
             let height = 1;
-            let cells = item.iter().map(|c| Cell::from(*c));
+            // let cells = item.iter().map(|c| Cell::from(*c));
+            let time = item.departure.time().to_string();
+            let in_minutes = "1".to_string();
+            let duration = "2".to_string();
+            let lines = "3".to_string();
+            let delay = item.connection_part_list[0].delay.unwrap().to_string();
+            let info = "info".to_string();
+            let cells = vec![time, in_minutes, duration, lines, delay, info];
             Row::new(cells).height(height as u16).bottom_margin(0).style(Style::default())
         });
 
