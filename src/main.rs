@@ -12,7 +12,7 @@ use mvg_cli_rs::api::{
 use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
-    widgets::{Block, Borders, Paragraph, ListItem, List},
+    widgets::{Block, Borders, Paragraph, ListItem, List, Table, Cell, Row},
     Frame, Terminal, style::{Modifier, Style, Color}, text::{Span, Spans, Text},
 };
 
@@ -103,25 +103,40 @@ enum Focus {
 }
 
 struct App {
-    // Current value of input box
+    input_mode: InputMode,
+    focus: Focus,
     input_start: String,
     input_destination: String,
-    // current input mode
-    input_mode: InputMode,
-    // history of recoreded messages
+    start: String,
+    destination: String,
     messages: Vec<String>,
-    focus: Focus,
 }
 
 impl Default for App {
     fn default() -> Self {
         App {
+            input_mode: InputMode::Normal,
+            focus: Focus::Start,
             input_start: String::new(),
             input_destination: String::new(),
-            input_mode: InputMode::Normal,
+            start: String::new(),
+            destination: String::new(),
             messages: Vec::new(),
-            focus: Focus::Start,
         }
+    }
+}
+
+impl App {
+    fn focus_start(&mut self) {
+        self.focus = Focus::Start;
+    }
+
+    fn focus_destination(&mut self) {
+        self.focus = Focus::Destination;
+    }
+
+    fn focus_routes(&mut self) {
+        self.focus = Focus::Routes;
     }
 }
 
@@ -135,8 +150,9 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<()> {
                     //quit app
                     KeyCode::Char('q') => return Ok(()),
                     KeyCode::Char('i') => app.input_mode = InputMode::Editing,
-                    KeyCode::Char('l') => app.focus = Focus::Destination,
-                    KeyCode::Char('h') => app.focus = Focus::Start,
+                    KeyCode::Char('l') => app.focus_destination(),
+                    KeyCode::Char('h') => app.focus_start(),
+                    KeyCode::Char('j') => app.focus_routes(),
                     _ => {}
                 },
                 InputMode::Editing => match key.code {
@@ -152,7 +168,14 @@ fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<()> {
                         _ => {}
 
                     },
-                    KeyCode::Esc => { app.input_mode = InputMode::Normal; },
+                    KeyCode::Esc => { 
+                        app.input_mode = InputMode::Normal;
+                        match app.focus {
+                            Focus::Start => app.start = app.input_start.clone(),
+                            Focus::Destination => app.destination = app.input_destination.clone(),
+                            _ => {},
+                        }
+                    },
                     _ => {}
                 },
                 _ => {}
@@ -219,12 +242,13 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     f.render_widget(help_message, chunks[0]);
 
     ///// Input ares
-    let input_area_start = create_input_start(&app, "Start");
-    let input_area_destination = create_input_destination(&app, "Destination");
+    let input_start = start_paragraph(&app);
+    let input_destination = desination_paragraph(&app);
 
-    f.render_widget(input_area_start, input_areas[0]);
-    f.render_widget(input_area_destination, input_areas[1]);
+    f.render_widget(input_start, input_areas[0]);
+    f.render_widget(input_destination, input_areas[1]);
 
+    ///// cursor position
     match app.input_mode {
         InputMode::Normal => {},
         InputMode::Editing => match app.focus {
@@ -234,22 +258,13 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
         },
     }
 
-    let messages: Vec<ListItem> = app
-        .messages.
-        iter().
-        enumerate().
-        map(|(i, m)| {
-            let content = vec![Spans::from(Span::raw(format!("{}: {}", i, m)))];
-            ListItem::new(content)
-        })
-        .collect();
+    ///// routes pane
+    let routes = routes_table(&app);
 
-    let messages = List::new(messages).block(Block::default().borders(Borders::ALL).title("Messages"));
-
-    f.render_widget(messages, chunks[2]);
+    f.render_widget(routes, chunks[2]);
 }
 
-fn create_input_start<'a>(app: &'a App, title: &'a str) -> Paragraph<'a> {
+fn start_paragraph(app: &App) -> Paragraph {
     Paragraph::new(app.input_start.as_ref())
         .style(match app.input_mode {
             InputMode::Normal => if let Focus::Start = app.focus {
@@ -258,10 +273,10 @@ fn create_input_start<'a>(app: &'a App, title: &'a str) -> Paragraph<'a> {
             InputMode::Editing => if let Focus::Start = app.focus {
                 Style::default().fg(Color::Yellow) } else { Style::default() }
         })
-        .block(Block::default().borders(Borders::ALL).title(title))
+        .block(Block::default().borders(Borders::ALL).title("Start"))
 }
 
-fn create_input_destination<'a>(app: &'a App, title: &'a str) -> Paragraph<'a> {
+fn desination_paragraph(app: &App) -> Paragraph {
     Paragraph::new(app.input_destination.as_ref())
         .style(match app.input_mode {
             InputMode::Normal => if let Focus::Destination = app.focus {
@@ -270,5 +285,54 @@ fn create_input_destination<'a>(app: &'a App, title: &'a str) -> Paragraph<'a> {
             InputMode::Editing => if let Focus::Destination = app.focus {
                 Style::default().fg(Color::Yellow) } else { Style::default() }
          })
-        .block(Block::default().borders(Borders::ALL).title(title))
+        .block(Block::default().borders(Borders::ALL).title("Destination"))
+}
+
+fn routes_table(app: &App) -> Table {
+    let header_cells = ["TIME", "IN", "DURATION", "LINES", "DELAY", "INFO"]
+        .iter()
+        .map(|h| Cell::from(*h).style(Style::default().fg(Color::Red)));
+    let header = Row::new(header_cells)
+        .style(Style::default())
+        .height(1)
+        .bottom_margin(1);
+
+    let items = vec![
+        vec!["one", "two", "three", "four", "five", "six"],
+        vec!["one", "two", "three", "four", "five", "six"],
+        vec!["one", "two", "three", "four", "five", "six"],
+        vec!["one", "two", "three", "four", "five", "six"],
+        vec!["one", "two", "three", "four", "five", "six"],
+    ];
+
+    let rows = items
+        .iter()
+        .map(|item| {
+            let height = 1;
+            let cells = item.iter().map(|c| Cell::from(*c));
+            Row::new(cells).height(height as u16).bottom_margin(0).style(Style::default())
+        });
+
+
+    Table::new(rows)
+        .header(header)
+        .block(Block::default()
+            .borders(Borders::ALL)
+            .title("Routes")
+            .border_style(match app.focus {
+                Focus::Routes => Style::default().fg(Color::Blue),
+                _ => Style::default(),
+
+            })
+        )
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+        .highlight_symbol("> ")
+        .widths(&[
+            Constraint::Percentage(16),
+            Constraint::Percentage(16),
+            Constraint::Percentage(16),
+            Constraint::Percentage(16),
+            Constraint::Percentage(16),
+            Constraint::Percentage(16),
+        ])
 }
