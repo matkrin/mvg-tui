@@ -1,5 +1,5 @@
 [package]
-name = "mvg-cli-rs"
+name = "mvg-tui"
 version = "0.1.0"
 edition = "2021"
 

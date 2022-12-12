@@ -555,7 +555,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mvg-cli-rs"
+name = "mvg-tui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
