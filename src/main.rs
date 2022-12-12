@@ -1,13 +1,13 @@
-use std::io;
+use std::{io, collections::HashSet};
 
 use anyhow::Result;
-use chrono::{Utc, DateTime};
+use chrono::{Utc, DateTime, Local};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use mvg_cli_rs::api::{
+use mvg_tui::api::{
     get_departures, get_notifications, get_routes, get_station, StationResponse, routes::{ConnectionList, Connection},
 };
 use reqwest::get;
@@ -328,12 +328,28 @@ fn routes_table(app: &App) -> Table {
         .map(|item| {
             let height = 1;
             // let cells = item.iter().map(|c| Cell::from(*c));
-            let time = item.departure.time().to_string();
-            let in_minutes = "1".to_string();
-            let duration = "2".to_string();
-            let lines = "3".to_string();
-            let delay = item.connection_part_list[0].delay.unwrap().to_string();
+            let time = format!("{} - {}", item.departure.time(), item.arrival.time());
+            let in_minutes = (item.departure.time() - Local::now().time()).num_minutes().to_string();
+            let duration = (item.arrival.time() - item.departure.time()).num_minutes().to_string();
+
+            let mut lines = HashSet::new();
+            for cp in item.connection_part_list.iter() {
+                if cp.connection_part_type == "FOOTWAY" {
+                    lines.insert("walk");
+                } else {
+                    let label = if let Some(x) = &cp.label {x} else {""};
+                    lines.insert(label);
+                }
+            }
+            let lines = lines.into_iter().collect::<Vec<&str>>().join(", ");
+
+            let mut delay = item.connection_part_list[0].delay.unwrap().to_string();
+            if delay == "0" {
+                delay = "-".to_string();
+            }
+
             let info = "info".to_string();
+
             let cells = vec![time, in_minutes, duration, lines, delay, info];
             Row::new(cells).height(height as u16).bottom_margin(0).style(Style::default())
         });
