@@ -9,6 +9,7 @@ use tui::backend::{Backend, CrosstermBackend};
 use tui::Terminal;
 
 use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode};
+use tui::widgets::TableState;
 
 use crate::api::{get_routes, get_station, routes::Connection, StationResponse};
 
@@ -17,6 +18,7 @@ use crate::ui::ui;
 pub enum InputMode {
     Normal,
     Editing,
+    Table,
 }
 
 pub enum Focus {
@@ -86,15 +88,69 @@ impl App {
     }
 }
 
-pub async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Result<()> {
+pub struct RoutesTableState {
+    pub table_state: TableState,
+}
+
+impl RoutesTableState {
+    fn new() -> Self {
+        RoutesTableState {
+            table_state: TableState::default(),
+        }
+    }
+
+    pub fn next_table_entry(&mut self, app: &App) {
+        let i = match &app.input_mode {
+            InputMode::Table => match self.table_state.selected() {
+                Some(i) => {
+                    if i >= app.routes.len() - 1 {
+                        0
+                    } else {
+                        i + 1
+                    }
+                }
+                None => 0,
+            },
+            _ => 0,
+        };
+        self.table_state.select(Some(i));
+    }
+
+    pub fn previous_table_entry(&mut self, app: &App) {
+        let i = match &app.input_mode {
+            InputMode::Table => match self.table_state.selected() {
+                Some(i) => {
+                    if i == 0 {
+                        app.routes.len() - 1
+                    } else {
+                        i - 1
+                    }
+                }
+                None => 0,
+            },
+            _ => 0,
+        };
+        self.table_state.select(Some(i));
+    }
+}
+
+pub async fn run_app<B: Backend>(
+    terminal: &mut Terminal<B>,
+    mut app: App,
+    mut routes_table_state: RoutesTableState,
+) -> Result<()> {
     loop {
-        terminal.draw(|f| ui(f, &app))?;
+        terminal.draw(|f| ui(f, &mut app, &mut routes_table_state))?;
 
         if let Event::Key(key) = event::read()? {
             match app.input_mode {
                 InputMode::Normal => match key.code {
                     KeyCode::Char('q') => return Ok(()), // quits app
-                    KeyCode::Char('i') => app.input_mode = InputMode::Editing,
+                    KeyCode::Char('i') => match app.focus {
+                        Focus::Start => app.input_mode = InputMode::Editing,
+                        Focus::Destination => app.input_mode = InputMode::Editing,
+                        Focus::Routes => app.input_mode = InputMode::Table,
+                    },
                     KeyCode::Char('h') => app.focus_start(),
                     KeyCode::Char('l') => app.focus_destination(),
                     KeyCode::Char('j') => app.focus_routes(),
@@ -103,9 +159,9 @@ pub async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Re
                     _ => {}
                 },
                 InputMode::Editing => match key.code {
-                    KeyCode::Enter => {
-                        app.messages.push(app.input_start.drain(..).collect());
-                    }
+                    // KeyCode::Enter => {
+                    //     app.messages.push(app.input_start.drain(..).collect());
+                    // }
                     KeyCode::Char(c) => match app.focus {
                         Focus::Start => app.input_start.push(c),
                         Focus::Destination => app.input_destination.push(c),
@@ -130,6 +186,12 @@ pub async fn run_app<B: Backend>(terminal: &mut Terminal<B>, mut app: App) -> Re
                     }
                     _ => {}
                 },
+                InputMode::Table => match key.code {
+                    KeyCode::Char('j') => routes_table_state.next_table_entry(&app),
+                    KeyCode::Char('k') => routes_table_state.previous_table_entry(&app),
+                    KeyCode::Esc => app.input_mode = InputMode::Normal,
+                    _ => {}
+                },
             }
         }
     }
@@ -143,7 +205,8 @@ pub async fn run_tui() -> Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let app = App::default();
-    let res = run_app(&mut terminal, app).await?;
+    let routes_table_state = RoutesTableState::new();
+    let res = run_app(&mut terminal, app, routes_table_state).await?;
 
     disable_raw_mode()?;
     execute!(

@@ -6,17 +6,17 @@ use tui::{
     layout::{Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
-    widgets::{Block, Borders, Cell, Paragraph, Row, Table},
+    widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState},
     Frame,
 };
 use unicode_width::UnicodeWidthStr;
 
 use crate::{
     api::routes::{Connection, ConnectionPart},
-    app::{App, Focus, InputMode},
+    app::{App, Focus, InputMode, RoutesTableState},
 };
 
-pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
+pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut RoutesTableState) {
     ///// Layout
     let chunks = Layout::default()
         .direction(Direction::Vertical)
@@ -59,17 +59,31 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
             ],
             Style::default(),
         ),
+        InputMode::Table => (
+            vec![
+                Span::raw("Press "),
+                Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(" to stop editing "),
+                Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw(" to recored message"),
+            ],
+            Style::default(),
+        ),
     };
 
     let mut text = Text::from(Spans::from(msg));
     text.patch_style(style);
 
-    let help_message = Paragraph::new(text);
+    // let help_message = Paragraph::new(text);
+    // let help_message = Paragraph::new(Text::from(app.routes.len().to_string()));
+    let help_message = Paragraph::new(Text::from(
+        routes_table_state.table_state.selected().unwrap_or(666).to_string(),
+    ));
     f.render_widget(help_message, chunks[0]);
 
     ///// Input ares
-    let input_start = start_paragraph(&app);
-    let input_destination = desination_paragraph(&app);
+    let input_start = start_paragraph(app);
+    let input_destination = desination_paragraph(app);
 
     f.render_widget(input_start, input_areas[0]);
     f.render_widget(input_destination, input_areas[1]);
@@ -88,20 +102,22 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
             ),
             _ => {}
         },
+        InputMode::Table => {}
     }
 
     ///// routes pane
-    let routes = routes_table(&app);
+    let routes = routes_table(app);
 
-    f.render_widget(routes, chunks[2]);
+    f.render_stateful_widget(routes, chunks[2], &mut routes_table_state.table_state);
 }
+
 
 fn start_paragraph(app: &App) -> Paragraph {
     Paragraph::new(app.input_start.as_ref())
         .style(match app.input_mode {
             InputMode::Normal => {
                 if let Focus::Start = app.focus {
-                    Style::default().fg(Color::Blue)
+                    Style::default().fg(Color::Green)
                 } else {
                     Style::default()
                 }
@@ -110,6 +126,13 @@ fn start_paragraph(app: &App) -> Paragraph {
             InputMode::Editing => {
                 if let Focus::Start = app.focus {
                     Style::default().fg(Color::Yellow)
+                } else {
+                    Style::default()
+                }
+            }
+            InputMode::Table => {
+                if let Focus::Start = app.focus {
+                    Style::default().fg(Color::Green)
                 } else {
                     Style::default()
                 }
@@ -123,7 +146,7 @@ fn desination_paragraph(app: &App) -> Paragraph {
         .style(match app.input_mode {
             InputMode::Normal => {
                 if let Focus::Destination = app.focus {
-                    Style::default().fg(Color::Blue)
+                    Style::default().fg(Color::Green)
                 } else {
                     Style::default()
                 }
@@ -132,6 +155,13 @@ fn desination_paragraph(app: &App) -> Paragraph {
             InputMode::Editing => {
                 if let Focus::Destination = app.focus {
                     Style::default().fg(Color::Yellow)
+                } else {
+                    Style::default()
+                }
+            }
+            InputMode::Table => {
+                if let Focus::Destination = app.focus {
+                    Style::default().fg(Color::Green)
                 } else {
                     Style::default()
                 }
@@ -160,7 +190,10 @@ fn routes_table(app: &App) -> Table {
                 .borders(Borders::ALL)
                 .title("Routes")
                 .border_style(match app.focus {
-                    Focus::Routes => Style::default().fg(Color::Blue),
+                    Focus::Routes => match app.input_mode {
+                        InputMode::Table => Style::default().fg(Color::Yellow),
+                        _ => Style::default().fg(Color::Green),
+                    },
                     _ => Style::default(),
                 }),
         )
