@@ -314,20 +314,12 @@ fn routes_table(app: &App) -> Table {
         .height(1)
         .bottom_margin(1);
 
-    // let items = vec![
-    //     vec!["one", "two", "three", "four", "five", "six"],
-    //     vec!["one", "two", "three", "four", "five", "six"],
-    //     vec!["one", "two", "three", "four", "five", "six"],
-    //     vec!["one", "two", "three", "four", "five", "six"],
-    //     vec!["one", "two", "three", "four", "five", "six"],
-    // ];
     let items = &app.routes;
 
     let rows = items
         .iter()
         .map(|item| {
             let height = 1;
-            // let cells = item.iter().map(|c| Cell::from(*c));
             let time = format!("{} - {}", item.departure.time(), item.arrival.time());
             let in_minutes = (item.departure.time() - Local::now().time()).num_minutes().to_string();
             let duration = (item.arrival.time() - item.departure.time()).num_minutes().to_string();
@@ -343,12 +335,22 @@ fn routes_table(app: &App) -> Table {
             }
             let lines = lines.into_iter().collect::<Vec<&str>>().join(", ");
 
-            let mut delay = item.connection_part_list[0].delay.unwrap().to_string();
+            let mut delay = if let Some(x) = item.connection_part_list[0].delay {
+                x.to_string() } else { "-".to_string() };
             if delay == "0" {
                 delay = "-".to_string();
             }
 
-            let info = "info".to_string();
+            let mut info = "info".to_string();
+            for cp in item.connection_part_list.iter() {
+                let label = if let Some(x) = &cp.label { x } else { "" };
+                let nots = if let Some(x) = &cp.notifications { x.iter().map(|n| n.title.clone()).collect() } else { "".to_string() };
+                if nots == "" {
+                    info = if let Some(x) = &cp.info_messages { x.join(" ") } else { "".to_string() };
+                } else {
+                    info = format!("{}: {}", label, nots);
+                }
+            };
 
             let cells = vec![time, in_minutes, duration, lines, delay, info];
             Row::new(cells).height(height as u16).bottom_margin(0).style(Style::default())
