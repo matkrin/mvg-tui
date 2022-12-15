@@ -11,7 +11,10 @@ use tui::{
 };
 use unicode_width::UnicodeWidthStr;
 
-use crate::app::{App, Focus, InputMode};
+use crate::{
+    api::routes::{Connection, ConnectionPart},
+    app::{App, Focus, InputMode},
+};
 
 pub fn ui<B: Backend>(f: &mut Frame<B>, app: &App) {
     ///// Layout
@@ -148,61 +151,7 @@ fn routes_table(app: &App) -> Table {
 
     let items = &app.routes;
 
-    let rows = items.iter().map(|item| {
-        let height = 1;
-        let time = format!("{} - {}", item.departure.time(), item.arrival.time());
-        let in_minutes = (item.departure.time() - Local::now().time())
-            .num_minutes()
-            .to_string();
-        let duration = (item.arrival.time() - item.departure.time())
-            .num_minutes()
-            .to_string();
-
-        let mut lines = HashSet::new();
-        for cp in item.connection_part_list.iter() {
-            if cp.connection_part_type == "FOOTWAY" {
-                lines.insert("walk");
-            } else {
-                let label = if let Some(x) = &cp.label { x } else { "" };
-                lines.insert(label);
-            }
-        }
-        let lines = lines.into_iter().collect::<Vec<&str>>().join(", ");
-
-        let mut delay = if let Some(x) = item.connection_part_list[0].delay {
-            x.to_string()
-        } else {
-            "-".to_string()
-        };
-        if delay == "0" {
-            delay = "-".to_string();
-        }
-
-        let mut info = "info".to_string();
-        for cp in item.connection_part_list.iter() {
-            let label = if let Some(x) = &cp.label { x } else { "" };
-            let nots = if let Some(x) = &cp.notifications {
-                x.iter().map(|n| n.title.clone()).collect()
-            } else {
-                "".to_string()
-            };
-            if nots == "" {
-                info = if let Some(x) = &cp.info_messages {
-                    x.join(" ")
-                } else {
-                    "".to_string()
-                };
-            } else {
-                info = format!("{}: {}", label, nots);
-            }
-        }
-
-        let cells = vec![time, in_minutes, duration, lines, delay, info];
-        Row::new(cells)
-            .height(height as u16)
-            .bottom_margin(0)
-            .style(Style::default())
-    });
+    let rows = items.iter().map(prepare_routes);
 
     Table::new(rows)
         .header(header)
@@ -225,4 +174,74 @@ fn routes_table(app: &App) -> Table {
             Constraint::Percentage(16),
             Constraint::Percentage(16),
         ])
+}
+
+fn prepare_routes(conn: &Connection) -> Row {
+    let height = 1;
+    let time = format!(
+        "{} - {}",
+        conn.departure.format("%H:%M"),
+        conn.arrival.format("%H:%M")
+    );
+    let in_minutes = (conn.departure.time() - Local::now().time())
+        .num_minutes()
+        .to_string();
+    let duration = (conn.arrival.time() - conn.departure.time())
+        .num_minutes()
+        .to_string();
+    let lines = prepare_lines(&conn.connection_part_list);
+    let delay = prepare_delay(&conn.connection_part_list);
+    let info = prepare_info(&conn.connection_part_list);
+    let cells = vec![time, in_minutes, duration, lines, delay, info];
+    Row::new(cells)
+        .height(height as u16)
+        .bottom_margin(0)
+        .style(Style::default())
+}
+
+fn prepare_lines(cp_list: &Vec<ConnectionPart>) -> String {
+    let mut lines = HashSet::new();
+    for cp in cp_list.iter() {
+        if cp.connection_part_type == "FOOTWAY" {
+            lines.insert("walk");
+        } else {
+            let label = if let Some(x) = &cp.label { x } else { "" };
+            lines.insert(label);
+        }
+    }
+    lines.into_iter().collect::<Vec<&str>>().join(", ")
+}
+
+fn prepare_delay(cp_list: &Vec<ConnectionPart>) -> String {
+    let mut delay = if let Some(x) = cp_list[0].delay {
+        x.to_string()
+    } else {
+        "-".to_string()
+    };
+    if delay == "0" {
+        delay = "-".to_string();
+    }
+    delay
+}
+
+fn prepare_info(cp_list: &Vec<ConnectionPart>) -> String {
+    let mut info = "".to_string();
+    for cp in cp_list.iter() {
+        let label = if let Some(x) = &cp.label { x } else { "" };
+        let nots = if let Some(x) = &cp.notifications {
+            x.iter().map(|n| n.title.clone()).collect()
+        } else {
+            "".to_string()
+        };
+        if nots == "" {
+            info = if let Some(x) = &cp.info_messages {
+                x.join(" ")
+            } else {
+                "".to_string()
+            };
+        } else {
+            info = format!("{}: {}", label, nots);
+        }
+    }
+    info
 }
