@@ -85,8 +85,8 @@ pub struct Stop {
     pub location: StationResp,
     #[serde_as(as = "TimestampMilliSeconds<i64>")]
     pub time: DateTime<Local>,
-    pub delay: i32,
-    pub arr_delay: i32,
+    pub delay: Option<i32>,
+    pub arr_delay: Option<i32>,
     pub cancelled: bool,
 }
 
