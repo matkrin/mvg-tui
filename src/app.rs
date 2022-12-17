@@ -146,11 +146,7 @@ pub async fn run_app<B: Backend>(
             match app.input_mode {
                 InputMode::Normal => match key.code {
                     KeyCode::Char('q') => return Ok(()), // quits app
-                    KeyCode::Char('i') => match app.focus {
-                        Focus::Start => app.input_mode = InputMode::Editing,
-                        Focus::Destination => app.input_mode = InputMode::Editing,
-                        Focus::Routes => app.input_mode = InputMode::Table,
-                    },
+                    KeyCode::Char('i') => handle_i_key(&mut app),
                     KeyCode::Char('h') => app.focus_start(),
                     KeyCode::Char('l') => app.focus_destination(),
                     KeyCode::Char('j') => app.focus_routes(),
@@ -162,28 +158,9 @@ pub async fn run_app<B: Backend>(
                     // KeyCode::Enter => {
                     //     app.messages.push(app.input_start.drain(..).collect());
                     // }
-                    KeyCode::Char(c) => match app.focus {
-                        Focus::Start => app.input_start.push(c),
-                        Focus::Destination => app.input_destination.push(c),
-                        _ => {}
-                    },
-                    KeyCode::Backspace => match app.focus {
-                        Focus::Start => {
-                            app.input_start.pop();
-                        }
-                        Focus::Destination => {
-                            app.input_destination.pop();
-                        }
-                        _ => {}
-                    },
-                    KeyCode::Esc => {
-                        app.input_mode = InputMode::Normal;
-                        match app.focus {
-                            Focus::Start => app.start = app.input_start.clone(),
-                            Focus::Destination => app.destination = app.input_destination.clone(),
-                            _ => {}
-                        }
-                    }
+                    KeyCode::Char(c) => handle_typing(&mut app, c),
+                    KeyCode::Backspace => handle_backspace(&mut app),
+                    KeyCode::Esc => handle_esc(&mut app),
                     _ => {}
                 },
                 InputMode::Table => match key.code {
@@ -194,6 +171,43 @@ pub async fn run_app<B: Backend>(
                 },
             }
         }
+    }
+}
+
+fn handle_i_key(app: &mut App) {
+    match app.focus {
+        Focus::Start => app.input_mode = InputMode::Editing,
+        Focus::Destination => app.input_mode = InputMode::Editing,
+        Focus::Routes => app.input_mode = InputMode::Table,
+    }
+}
+
+fn handle_typing(app: &mut App, character: char) {
+    match app.focus {
+        Focus::Start => app.input_start.push(character),
+        Focus::Destination => app.input_destination.push(character),
+        _ => (),
+    }
+}
+
+fn handle_backspace(app: &mut App) {
+    match app.focus {
+        Focus::Start => {
+            app.input_start.pop();
+        }
+        Focus::Destination => {
+            app.input_destination.pop();
+        }
+        _ => {}
+    }
+}
+
+fn handle_esc(app: &mut App) {
+    app.input_mode = InputMode::Normal;
+    match app.focus {
+        Focus::Start => app.start = app.input_start.clone(),
+        Focus::Destination => app.destination = app.input_destination.clone(),
+        _ => {}
     }
 }
 
