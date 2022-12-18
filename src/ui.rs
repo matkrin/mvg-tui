@@ -3,10 +3,10 @@ use std::collections::HashSet;
 use chrono::Local;
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
-    widgets::{Block, Borders, Cell, Paragraph, Row, Table, TableState},
+    widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table},
     Frame,
 };
 use unicode_width::UnicodeWidthStr;
@@ -76,8 +76,15 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
 
     // let help_message = Paragraph::new(text);
     // let help_message = Paragraph::new(Text::from(app.routes.len().to_string()));
+    // let help_message = Paragraph::new(Text::from(
+    //     routes_table_state
+    //         .table_state
+    //         .selected()
+    //         .unwrap_or(666)
+    //         .to_string(),
+    // ));
     let help_message = Paragraph::new(Text::from(
-        routes_table_state.table_state.selected().unwrap_or(666).to_string(),
+        app.routes.len().to_string()
     ));
     f.render_widget(help_message, chunks[0]);
 
@@ -109,8 +116,14 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
     let routes = routes_table(app);
 
     f.render_stateful_widget(routes, chunks[2], &mut routes_table_state.table_state);
-}
 
+    if app.show_popup {
+        let block = Block::default().borders(Borders::ALL);
+        let area = popup_rect(60, 20, f.size());
+        f.render_widget(Clear, area);
+        f.render_widget(block, area);
+    }
+}
 
 fn start_paragraph(app: &App) -> Paragraph {
     Paragraph::new(app.input_start.as_ref())
@@ -168,6 +181,32 @@ fn desination_paragraph(app: &App) -> Paragraph {
             }
         })
         .block(Block::default().borders(Borders::ALL).title("Destination"))
+}
+
+fn popup_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+    let popup_layout = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_y) / 2),
+                Constraint::Percentage(percent_y),
+                Constraint::Percentage((100 - percent_y) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(r);
+
+    Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints(
+            [
+                Constraint::Percentage((100 - percent_x) / 2),
+                Constraint::Percentage(percent_x),
+                Constraint::Percentage((100 - percent_x) / 2),
+            ]
+            .as_ref(),
+        )
+        .split(popup_layout[1])[1]
 }
 
 fn routes_table(app: &App) -> Table {

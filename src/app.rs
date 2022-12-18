@@ -1,18 +1,18 @@
-use std::io;
+use std::sync::mpsc::{Sender, Receiver};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use std::thread;
 
 use anyhow::Result;
-use crossterm::execute;
-use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
-};
-use tui::backend::{Backend, CrosstermBackend};
 use tui::Terminal;
 
-use crossterm::event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode};
+use crossterm::event::{self, Event, KeyCode};
+use tui::backend::Backend;
 use tui::widgets::TableState;
 
-use crate::api::{get_routes, get_station, routes::Connection, StationResponse};
+use crate::api::routes::Connection;
 
+use crate::networking::{start_tokio, IoEvent};
 use crate::ui::ui;
 
 pub enum InputMode {
@@ -36,6 +36,8 @@ pub struct App {
     pub destination: String,
     pub routes: Vec<Connection>,
     pub messages: Vec<String>,
+    pub show_popup: bool,
+    io_tx: Option<Sender<IoEvent>>,
 }
 
 impl Default for App {
@@ -49,11 +51,20 @@ impl Default for App {
             destination: String::new(),
             routes: Vec::new(),
             messages: Vec::new(),
+            show_popup: false,
+            io_tx: None,
         }
     }
 }
 
 impl App {
+    pub fn new(io_tx: Sender<IoEvent>) -> Self {
+        App {
+            io_tx: Some(io_tx),
+            ..App::default()
+        }
+    }
+
     fn focus_start(&mut self) {
         self.focus = Focus::Start;
     }
@@ -65,27 +76,6 @@ impl App {
     fn focus_routes(&mut self) {
         self.focus = Focus::Routes;
     }
-
-    async fn fetch_routes(&mut self) -> Result<()> {
-        let from = get_station(&self.start).await?;
-        let from_id = if let StationResponse::Station(x) = &from.locations[0] {
-            x.id.clone()
-        } else {
-            "".to_string()
-        };
-        let to = get_station(&self.destination).await?;
-        let to_id = if let StationResponse::Station(x) = &to.locations[0] {
-            x.id.clone()
-        } else {
-            "".to_string()
-        };
-        let routes = get_routes(
-            &from_id, &to_id, None, None, None, None, None, None, None, None,
-        )
-        .await?;
-        self.routes = routes.connection_list;
-        Ok(())
-    }
 }
 
 pub struct RoutesTableState {
@@ -93,7 +83,7 @@ pub struct RoutesTableState {
 }
 
 impl RoutesTableState {
-    fn new() -> Self {
+    pub fn new() -> Self {
         RoutesTableState {
             table_state: TableState::default(),
         }
@@ -136,10 +126,16 @@ impl RoutesTableState {
 
 pub async fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
-    mut app: App,
+    app_m: Arc<Mutex<App>>,
     mut routes_table_state: RoutesTableState,
+    rx: Receiver<IoEvent>,
 ) -> Result<()> {
+    let cloned_app = Arc::clone(&app_m);
+    thread::spawn(move || {
+        start_tokio(&app_m, rx)
+    });
     loop {
+        let mut app = cloned_app.lock().await;
         terminal.draw(|f| ui(f, &mut app, &mut routes_table_state))?;
 
         if let Event::Key(key) = event::read()? {
@@ -151,7 +147,12 @@ pub async fn run_app<B: Backend>(
                     KeyCode::Char('l') => app.focus_destination(),
                     KeyCode::Char('j') => app.focus_routes(),
                     KeyCode::Char('k') => app.focus_start(),
-                    KeyCode::Char('f') => app.fetch_routes().await?,
+                    KeyCode::Char('f') => {
+                        app.show_popup = true;
+                        if let Some(tx) = &app.io_tx {
+                            tx.send(IoEvent::GetRoutes(app.start.to_string(), app.destination.to_string()))?;
+                        }
+                    },
                     _ => {}
                 },
                 InputMode::Editing => match key.code {
@@ -211,29 +212,3 @@ fn handle_esc(app: &mut App) {
     }
 }
 
-pub async fn run_tui() -> Result<()> {
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
-    let app = App::default();
-    let routes_table_state = RoutesTableState::new();
-    let res = run_app(&mut terminal, app, routes_table_state).await?;
-
-    disable_raw_mode()?;
-    execute!(
-        terminal.backend_mut(),
-        LeaveAlternateScreen,
-        DisableMouseCapture
-    )?;
-    terminal.show_cursor()?;
-
-    // if let Err(err) = res {
-    //     println!("{:?}", err);
-    //     ()
-    // }
-
-    Ok(())
-}
