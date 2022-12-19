@@ -13,7 +13,7 @@ async fn run_tui() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let (tx, rx) = std::sync::mpsc::channel();
+    let (tx, rx) = tokio::sync::mpsc::channel(100);
     let app = Arc::new(Mutex::new(App::new(tx)));
     let routes_table_state = RoutesTableState::new();
     let res = run_app(&mut terminal, app, routes_table_state, rx).await;

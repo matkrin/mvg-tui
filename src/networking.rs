@@ -8,9 +8,8 @@ pub enum IoEvent {
     GetRoutes(String, String),
 }
 
-#[tokio::main]
-pub async fn start_tokio(app: &Arc<Mutex<App>>, io_rx: std::sync::mpsc::Receiver<IoEvent>) -> Result<()> {
-    while let Ok(io_event) = io_rx.recv() {
+pub async fn start_tokio(app: &Arc<Mutex<App>>, mut io_rx: tokio::sync::mpsc::Receiver<IoEvent>) -> Result<()> {
+    while let Some(io_event) = io_rx.recv().await {
         match io_event {
             IoEvent::GetRoutes(from, to) => {
                 let from = get_station(&from).await?;

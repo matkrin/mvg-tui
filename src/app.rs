@@ -1,6 +1,6 @@
-use std::sync::mpsc::{Sender, Receiver};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::{Sender, Receiver};
 use std::thread;
 
 use anyhow::Result;
@@ -126,13 +126,13 @@ impl RoutesTableState {
 
 pub async fn run_app<B: Backend>(
     terminal: &mut Terminal<B>,
-    app_m: Arc<Mutex<App>>,
+    app: Arc<Mutex<App>>,
     mut routes_table_state: RoutesTableState,
     rx: Receiver<IoEvent>,
 ) -> Result<()> {
-    let cloned_app = Arc::clone(&app_m);
-    thread::spawn(move || {
-        start_tokio(&app_m, rx)
+    let cloned_app = Arc::clone(&app);
+    tokio::spawn(async move {
+        start_tokio(&app, rx).await;
     });
     loop {
         let mut app = cloned_app.lock().await;
@@ -150,8 +150,8 @@ pub async fn run_app<B: Backend>(
                     KeyCode::Char('f') => {
                         app.show_popup = true;
                         if let Some(tx) = &app.io_tx {
-                            tx.send(IoEvent::GetRoutes(app.start.to_string(), app.destination.to_string()))?;
-                        }
+                            tx.send(IoEvent::GetRoutes(app.start.to_string(), app.destination.to_string())).await;
+                        };
                     },
                     _ => {}
                 },
