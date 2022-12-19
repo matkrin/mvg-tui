@@ -48,6 +48,8 @@ pub struct App {
     io_tx: Option<Sender<IoEvent>>,
     pub frames: i64,
     pub datetime: DateTime<Local>,
+    pub input_date: String,
+    pub input_time: String,
     pub is_arrival: bool,
     pub use_ubahn: bool,
     pub use_sbahn: bool,
@@ -70,6 +72,8 @@ impl Default for App {
             io_tx: None,
             frames: 0,
             datetime: Local::now(),
+            input_date: Local::now().format("%d.%m.%Y").to_string(),
+            input_time: Local::now().format("%H:%M").to_string(),
             is_arrival: false,
             use_ubahn: true,
             use_sbahn: true,
@@ -284,6 +288,8 @@ fn handle_typing(app: &mut App, character: char) {
     match app.focus {
         Focus::Start => app.input_start.push(character),
         Focus::Destination => app.input_destination.push(character),
+        Focus::Date => app.input_date.push(character),
+        Focus::Time => app.input_time.push(character),
         _ => (),
     }
 }
@@ -295,6 +301,12 @@ fn handle_backspace(app: &mut App) {
         }
         Focus::Destination => {
             app.input_destination.pop();
+        }
+        Focus::Date => {
+            app.input_date.pop();
+        }
+        Focus::Time => {
+            app.input_time.pop();
         }
         _ => {}
     }

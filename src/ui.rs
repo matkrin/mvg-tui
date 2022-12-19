@@ -92,6 +92,14 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
                 input_areas[1].x + app.input_destination.width() as u16 + 1,
                 input_areas[1].y + 1,
             ),
+            Focus::Date => f.set_cursor(
+                options_areas[0].x + app.input_date.width() as u16 + 1,
+                options_areas[0].y + 1,
+            ),
+            Focus::Time => f.set_cursor(
+                options_areas[1].x + app.input_time.width() as u16 + 1,
+                options_areas[1].y + 1,
+            ),
             _ => {}
         },
         InputMode::Table => {}
@@ -184,8 +192,7 @@ fn desination_paragraph(app: &App) -> Paragraph {
 }
 
 fn date_paragraph(app: &App) -> Paragraph {
-    let date = app.datetime.format("%d.%m.%Y").to_string();
-    Paragraph::new(date)
+    Paragraph::new(app.input_date.as_ref())
         .style(match app.input_mode {
             InputMode::Normal => {
                 if let Focus::Date = app.focus {
@@ -214,8 +221,7 @@ fn date_paragraph(app: &App) -> Paragraph {
 }
 
 fn time_paragraph(app: &App) -> Paragraph {
-    let time = app.datetime.format("%H:%M").to_string();
-    Paragraph::new(time)
+    Paragraph::new(app.input_time.as_ref())
         .style(match app.input_mode {
             InputMode::Normal => {
                 if let Focus::Time = app.focus {
