@@ -110,8 +110,9 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
     f.render_stateful_widget(routes, chunks[2], &mut routes_table_state.table_state);
 
     ///// help message
-    let help_message = help_message(app);
+    // let help_message = help_message(app);
     // let help_message = Paragraph::new(Text::from(app.frames.to_string()));
+    let help_message = Paragraph::new(Text::from(app.datetime.to_string()));
     f.render_widget(help_message, chunks[3]);
 
     ///// Popup
