@@ -1,4 +1,5 @@
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tokio::sync::mpsc::{Sender, Receiver};
 use std::thread;
@@ -38,6 +39,7 @@ pub struct App {
     pub messages: Vec<String>,
     pub show_popup: bool,
     io_tx: Option<Sender<IoEvent>>,
+    pub frames: i64,
 }
 
 impl Default for App {
@@ -53,6 +55,7 @@ impl Default for App {
             messages: Vec::new(),
             show_popup: false,
             io_tx: None,
+            frames: 0,
         }
     }
 }
@@ -138,39 +141,43 @@ pub async fn run_app<B: Backend>(
         let mut app = cloned_app.lock().await;
         terminal.draw(|f| ui(f, &mut app, &mut routes_table_state))?;
 
-        if let Event::Key(key) = event::read()? {
-            match app.input_mode {
-                InputMode::Normal => match key.code {
-                    KeyCode::Char('q') => return Ok(()), // quits app
-                    KeyCode::Char('i') => handle_i_key(&mut app),
-                    KeyCode::Char('h') => app.focus_start(),
-                    KeyCode::Char('l') => app.focus_destination(),
-                    KeyCode::Char('j') => app.focus_routes(),
-                    KeyCode::Char('k') => app.focus_start(),
-                    KeyCode::Char('f') => {
-                        app.show_popup = true;
-                        if let Some(tx) = &app.io_tx {
-                            tx.send(IoEvent::GetRoutes(app.start.to_string(), app.destination.to_string())).await;
-                        };
+        if crossterm::event::poll(Duration::from_millis(10)).unwrap() {
+            if let Event::Key(key) = event::read()? {
+                match app.input_mode {
+                    InputMode::Normal => match key.code {
+                        KeyCode::Char('q') => return Ok(()), // quits app
+                        KeyCode::Char('i') => handle_i_key(&mut app),
+                        KeyCode::Char('h') => app.focus_start(),
+                        KeyCode::Char('l') => app.focus_destination(),
+                        KeyCode::Char('j') => app.focus_routes(),
+                        KeyCode::Char('k') => app.focus_start(),
+                        KeyCode::Char('f') => {
+                            app.show_popup = true;
+                            if let Some(tx) = &app.io_tx {
+                                tx.send(IoEvent::GetRoutes(app.start.to_string(), app.destination.to_string())).await;
+                            };
+                        },
+                        _ => {}
                     },
-                    _ => {}
-                },
-                InputMode::Editing => match key.code {
-                    // KeyCode::Enter => {
-                    //     app.messages.push(app.input_start.drain(..).collect());
-                    // }
-                    KeyCode::Char(c) => handle_typing(&mut app, c),
-                    KeyCode::Backspace => handle_backspace(&mut app),
-                    KeyCode::Esc => handle_esc(&mut app),
-                    _ => {}
-                },
-                InputMode::Table => match key.code {
-                    KeyCode::Char('j') => routes_table_state.next_table_entry(&app),
-                    KeyCode::Char('k') => routes_table_state.previous_table_entry(&app),
-                    KeyCode::Esc => app.input_mode = InputMode::Normal,
-                    _ => {}
-                },
+                    InputMode::Editing => match key.code {
+                        // KeyCode::Enter => {
+                        //     app.messages.push(app.input_start.drain(..).collect());
+                        // }
+                        KeyCode::Char(c) => handle_typing(&mut app, c),
+                        KeyCode::Backspace => handle_backspace(&mut app),
+                        KeyCode::Esc => handle_esc(&mut app),
+                        _ => {}
+                    },
+                    InputMode::Table => match key.code {
+                        KeyCode::Char('j') => routes_table_state.next_table_entry(&app),
+                        KeyCode::Char('k') => routes_table_state.previous_table_entry(&app),
+                        KeyCode::Esc => app.input_mode = InputMode::Normal,
+                        _ => {}
+                    },
+                }
             }
+            app.frames += 1;
+
         }
     }
 }

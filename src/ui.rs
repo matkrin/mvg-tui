@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use chrono::Local;
 use tui::{
     backend::Backend,
-    layout::{Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
     widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table},
@@ -83,9 +83,7 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
     //         .unwrap_or(666)
     //         .to_string(),
     // ));
-    let help_message = Paragraph::new(Text::from(
-        app.routes.len().to_string()
-    ));
+    let help_message = Paragraph::new(Text::from(app.frames.to_string()));
     f.render_widget(help_message, chunks[0]);
 
     ///// Input ares
@@ -118,10 +116,15 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
     f.render_stateful_widget(routes, chunks[2], &mut routes_table_state.table_state);
 
     if app.show_popup {
-        let block = Block::default().borders(Borders::ALL);
-        let area = popup_rect(60, 20, f.size());
-        f.render_widget(Clear, area);
-        f.render_widget(block, area);
+        // let block = Block::default().borders(Borders::ALL);
+        let popup_area = popup_rect(10, 5, f.size());
+        let block = Block::default()
+                    .borders(Borders::ALL)
+                    .title("Fetching")
+                    .title_alignment(Alignment::Center)
+                    .style(Style::default().add_modifier(Modifier::BOLD).bg(Color::Green).fg(Color::Black));
+        f.render_widget(Clear, popup_area);
+        f.render_widget(block, popup_area);
     }
 }
 
