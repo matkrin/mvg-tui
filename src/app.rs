@@ -1,8 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
+use chrono::{Local, DateTime};
+use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
-use tokio::sync::mpsc::{Sender, Receiver};
-use std::thread;
 
 use anyhow::Result;
 use tui::Terminal;
@@ -25,6 +25,13 @@ pub enum InputMode {
 pub enum Focus {
     Start,
     Destination,
+    Date,
+    Time,
+    Arrival,
+    Ubahn,
+    Sbahn,
+    Tram,
+    Bus,
     Routes,
 }
 
@@ -40,6 +47,12 @@ pub struct App {
     pub show_popup: bool,
     io_tx: Option<Sender<IoEvent>>,
     pub frames: i64,
+    pub datetime: DateTime<Local>,
+    pub is_arrival: bool,
+    pub use_ubahn: bool,
+    pub use_sbahn: bool,
+    pub use_tram: bool,
+    pub use_bus: bool,
 }
 
 impl Default for App {
@@ -56,6 +69,12 @@ impl Default for App {
             show_popup: false,
             io_tx: None,
             frames: 0,
+            datetime: Local::now(),
+            is_arrival: false,
+            use_ubahn: true,
+            use_sbahn: true,
+            use_tram: true,
+            use_bus: true,
         }
     }
 }
@@ -147,16 +166,20 @@ pub async fn run_app<B: Backend>(
                     InputMode::Normal => match key.code {
                         KeyCode::Char('q') => return Ok(()), // quits app
                         KeyCode::Char('i') => handle_i_key(&mut app),
-                        KeyCode::Char('h') => app.focus_start(),
-                        KeyCode::Char('l') => app.focus_destination(),
-                        KeyCode::Char('j') => app.focus_routes(),
-                        KeyCode::Char('k') => app.focus_start(),
+                        KeyCode::Char('h') => handle_h_key(&mut app),
+                        KeyCode::Char('l') => handle_l_key(&mut app),
+                        KeyCode::Char('j') => handle_j_key(&mut app),
+                        KeyCode::Char('k') => handle_k_key(&mut app),
                         KeyCode::Char('f') => {
                             app.show_popup = true;
                             if let Some(tx) = &app.io_tx {
-                                tx.send(IoEvent::GetRoutes(app.start.to_string(), app.destination.to_string())).await;
+                                tx.send(IoEvent::GetRoutes(
+                                    app.start.to_string(),
+                                    app.destination.to_string(),
+                                ))
+                                .await;
                             };
-                        },
+                        }
                         _ => {}
                     },
                     InputMode::Editing => match key.code {
@@ -177,7 +200,6 @@ pub async fn run_app<B: Backend>(
                 }
             }
             app.frames += 1;
-
         }
     }
 }
@@ -187,7 +209,75 @@ fn handle_i_key(app: &mut App) {
         Focus::Start => app.input_mode = InputMode::Editing,
         Focus::Destination => app.input_mode = InputMode::Editing,
         Focus::Routes => app.input_mode = InputMode::Table,
+        Focus::Date => app.input_mode = InputMode::Editing,
+        Focus::Time => app.input_mode = InputMode::Editing,
+        Focus::Arrival => app.is_arrival = !app.is_arrival,
+        Focus::Ubahn => app.use_ubahn = !app.use_ubahn,
+        Focus::Sbahn => app.use_sbahn = !app.use_sbahn,
+        Focus::Tram => app.use_tram = !app.use_tram,
+        Focus::Bus => app.use_bus = !app.use_bus,
     }
+}
+
+fn handle_h_key(app: &mut App) {
+    match app.focus {
+        Focus::Start => {},
+        Focus::Destination => app.focus = Focus::Start,
+        Focus::Date => {}, 
+        Focus::Time => app.focus = Focus::Date,
+        Focus::Arrival => app.focus = Focus::Time,
+        Focus::Ubahn => app.focus = Focus::Arrival,
+        Focus::Sbahn => app.focus = Focus::Ubahn,
+        Focus::Tram => app.focus = Focus::Sbahn,
+        Focus::Bus => app.focus = Focus::Tram,
+        Focus::Routes => {},
+    }
+}
+fn handle_j_key(app: &mut App) {
+    match app.focus {
+        Focus::Start => app.focus = Focus::Date,
+        Focus::Destination => app.focus = Focus::Date,
+        Focus::Date => app.focus = Focus::Routes, 
+        Focus::Time => app.focus = Focus::Routes,
+        Focus::Arrival => app.focus = Focus::Routes,
+        Focus::Ubahn => app.focus = Focus::Routes,
+        Focus::Sbahn => app.focus = Focus::Routes,  
+        Focus::Tram => app.focus = Focus::Routes,
+        Focus::Bus => app.focus = Focus::Routes,
+        Focus::Routes => {},
+    }
+
+}
+
+fn handle_k_key(app: &mut App) {
+    match app.focus {
+        Focus::Start => {},
+        Focus::Destination => {},
+        Focus::Date => app.focus = Focus::Start, 
+        Focus::Time => app.focus = Focus::Start,
+        Focus::Arrival => app.focus = Focus::Destination,
+        Focus::Ubahn => app.focus = Focus::Destination,
+        Focus::Sbahn => app.focus = Focus::Destination,  
+        Focus::Tram => app.focus = Focus::Destination,
+        Focus::Bus => app.focus = Focus::Destination,
+        Focus::Routes => app.focus = Focus::Date,
+    }
+}
+
+fn handle_l_key(app: &mut App) {
+    match app.focus {
+        Focus::Start => app.focus = Focus::Destination,
+        Focus::Destination => {},
+        Focus::Date => app.focus = Focus::Time, 
+        Focus::Time => app.focus = Focus::Arrival,
+        Focus::Arrival => app.focus = Focus::Ubahn,
+        Focus::Ubahn => app.focus = Focus::Sbahn,
+        Focus::Sbahn => app.focus = Focus::Tram,  
+        Focus::Tram => app.focus = Focus::Bus,
+        Focus::Bus => {},
+        Focus::Routes => {},
+    }
+
 }
 
 fn handle_typing(app: &mut App, character: char) {
@@ -218,4 +308,3 @@ fn handle_esc(app: &mut App) {
         _ => {}
     }
 }
-
