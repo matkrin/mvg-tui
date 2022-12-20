@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use chrono::Local;
+use itertools::Itertools;
 use tui::{
     backend::Backend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
@@ -416,16 +417,16 @@ fn prepare_routes(conn: &Connection) -> Row {
 }
 
 fn prepare_lines(cp_list: &Vec<ConnectionPart>) -> String {
-    let mut lines = HashSet::new();
+    let mut lines = Vec::new();
     for cp in cp_list.iter() {
         if cp.connection_part_type == "FOOTWAY" {
-            lines.insert("walk");
+            lines.push("walk");
         } else {
             let label = if let Some(x) = &cp.label { x } else { "" };
-            lines.insert(label);
+            lines.push(label);
         }
     }
-    lines.into_iter().collect::<Vec<&str>>().join(", ")
+    lines.iter().unique().join(", ")
 }
 
 fn prepare_delay(cp_list: &Vec<ConnectionPart>) -> String {
