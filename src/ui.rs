@@ -42,23 +42,47 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
     let options_areas = Layout::default()
         .direction(Direction::Horizontal)
         .margin(0)
-        .constraints([
-            Constraint::Percentage(30),
-            Constraint::Percentage(30),
-            Constraint::Percentage(8),
-            Constraint::Percentage(8),
-            Constraint::Percentage(8),
-            Constraint::Percentage(8),
-            Constraint::Percentage(8),
-        ])
+        .constraints(
+            [
+                Constraint::Percentage(30),
+                Constraint::Percentage(30),
+                Constraint::Percentage(8),
+                Constraint::Percentage(8),
+                Constraint::Percentage(8),
+                Constraint::Percentage(8),
+                Constraint::Percentage(8),
+            ].as_ref()
+        )
         .split(chunks[1]);
+
+    let info_area = Layout::default()
+        .direction(Direction::Horizontal)
+        .margin(0)
+        .constraints(
+            [
+                Constraint::Percentage(80),
+                Constraint::Percentage(20),
+            ].as_ref()
+        )
+        .split(chunks[2]);
+
+    let table_area = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Percentage(80),
+            Constraint::Percentage(20),
+        ])
+        .split(info_area[0]);
+
+    let start_area = input_areas[0];
+    let destination_area = input_areas[1];
 
     ///// Input ares
     let input_start = start_paragraph(app);
     let input_destination = desination_paragraph(app);
 
-    f.render_widget(input_start, input_areas[0]);
-    f.render_widget(input_destination, input_areas[1]);
+    f.render_widget(input_start, start_area);
+    f.render_widget(input_destination, destination_area);
 
     // Option areas
     let date_panel = date_paragraph(app);
@@ -108,7 +132,12 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
 
     ///// routes pane
     let routes = routes_table(app);
-    f.render_stateful_widget(routes, chunks[2], &mut routes_table_state.table_state);
+    f.render_stateful_widget(routes, table_area[0], &mut routes_table_state.table_state);
+
+    ///// Notification area
+    let notification = notifications(app, &routes_table_state);
+    f.render_widget(notification, table_area[1]);
+
 
     ///// help message
     // let help_message = help_message(app);
@@ -452,7 +481,7 @@ fn prepare_info(cp_list: &Vec<ConnectionPart>) -> String {
         };
         if nots == "" {
             info = if let Some(x) = &cp.info_messages {
-                x.join(" ")
+                x.join("\n")
             } else {
                 "".to_string()
             };
@@ -461,6 +490,23 @@ fn prepare_info(cp_list: &Vec<ConnectionPart>) -> String {
         }
     }
     info
+}
+
+fn notifications<'a>(app: &'a App, routes_table_state: &RoutesTableState) -> Paragraph<'a> {
+    let mut nots = Vec::new();
+    // let mut not = "".to_string();
+    for i in &app.routes {
+        let not =  prepare_info(&i.connection_part_list);
+        nots.push(not);
+    }
+    let curr_not = if let Some(selected) = routes_table_state.table_state.selected() {
+        &nots[selected]
+    } else { "" };
+
+    Paragraph::new(Text::from(curr_not.to_string()))
+        .block(Block::default()
+        .borders(Borders::ALL)
+        .title("Notifications"))
 }
 
 fn help_message(app: &App) -> Paragraph {
