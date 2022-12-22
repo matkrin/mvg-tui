@@ -7,7 +7,7 @@ use tui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
-    widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table},
+    widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, List, ListItem},
     Frame,
 };
 use unicode_width::UnicodeWidthStr;
@@ -133,6 +133,10 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
     ///// routes pane
     let routes = routes_table(app);
     f.render_stateful_widget(routes, table_area[0], &mut routes_table_state.table_state);
+
+    ///// routes details
+    let details = details_list(app, &routes_table_state);
+    f.render_widget(details, info_area[1]);
 
     ///// Notification area
     let notification = notifications(app, &routes_table_state);
@@ -411,7 +415,7 @@ fn routes_table(app: &App) -> Table {
                 }),
         )
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
-        .highlight_symbol("> ")
+        // .highlight_symbol("> ")
         .widths(&[
             Constraint::Percentage(16),
             Constraint::Percentage(16),
@@ -507,6 +511,28 @@ fn notifications<'a>(app: &'a App, routes_table_state: &RoutesTableState) -> Par
         .block(Block::default()
         .borders(Borders::ALL)
         .title("Notifications"))
+}
+
+fn details_list<'a>(app: &'a App, routes_table_state: &RoutesTableState) -> List<'a> {
+    let mut det = Vec::new();
+    match routes_table_state.table_state.selected() {
+        Some(idx) => {
+            for j in &app.routes[idx].connection_part_list {
+                det.push(format!(" ╭─ {}, {}", j.from.name, j.departure.format("%H:%M")));
+                for k in &j.stops {
+                    for l in k {
+                        det.push(format!(" ├──── {}, {}", l.location.name, l.time.format("%H:%M")));
+                    }
+                }
+                det.push(format!(" ╰─ {}, {}", j.to.name, j.arrival.format("%H:%M")));
+            }
+        }
+        None => (),
+    }
+
+    let items = det.iter().map(|x| ListItem::new(Span::raw(x.clone()))).collect::<Vec<ListItem>>();
+    List::new(items)
+        .block(Block::default().borders(Borders::ALL).title("Details"))
 }
 
 fn help_message(app: &App) -> Paragraph {
