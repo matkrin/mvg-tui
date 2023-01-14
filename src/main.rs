@@ -26,10 +26,10 @@ async fn run_tui() -> Result<()> {
     )?;
     terminal.show_cursor()?;
 
-    // if let Err(err) = res {
-    //     println!("{:?}", err);
-    //     ()
-    // }
+    if let Err(err) = res {
+        println!("{:?}", err);
+        ()
+    }
 
     Ok(())
 }

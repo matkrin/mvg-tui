@@ -44,12 +44,14 @@ pub struct App {
     pub destination: String,
     pub routes: Vec<Connection>,
     pub messages: Vec<String>,
-    pub show_popup: bool,
+    pub show_fetch_popup: bool,
     io_tx: Option<Sender<IoEvent>>,
     pub frames: i64,
     pub datetime: DateTime<Local>,
     pub input_date: String,
     pub input_time: String,
+    pub wrong_time: bool,
+    pub wrong_date: bool,
     pub is_arrival: bool,
     pub use_ubahn: bool,
     pub use_sbahn: bool,
@@ -68,12 +70,14 @@ impl Default for App {
             destination: String::new(),
             routes: Vec::new(),
             messages: Vec::new(),
-            show_popup: false,
+            show_fetch_popup: false,
             io_tx: None,
             frames: 0,
             datetime: Local::now(),
             input_date: Local::now().format("%d.%m.%Y").to_string(),
             input_time: Local::now().format("%H:%M").to_string(),
+            wrong_time: false,
+            wrong_date: false,
             is_arrival: false,
             use_ubahn: true,
             use_sbahn: true,
@@ -200,7 +204,8 @@ pub async fn run_app<B: Backend>(
 }
 
 async fn handle_fetch(app: &mut App) {
-    app.show_popup = true;
+    if app.wrong_time || app.wrong_date { return; }
+    app.show_fetch_popup = true;
     if let Some(tx) = &app.io_tx {
         tx.send(IoEvent::GetRoutes(RoutesParams {
             from: app.start.to_string(),
@@ -324,14 +329,28 @@ fn handle_esc(app: &mut App) {
         Focus::Start => app.start = app.input_start.clone(),
         Focus::Destination => app.destination = app.input_destination.clone(),
         Focus::Date => {
-            let date = NaiveDate::parse_from_str(&app.input_date, "%d.%m.%Y").expect("to parse date");
+            let date = match NaiveDate::parse_from_str(&app.input_date, "%d.%m.%Y") {
+                Ok(date) => date,
+                Err(_) => { 
+                    app.wrong_date = true; 
+                    return;
+                },
+            };
             let datetime = date.and_time(app.datetime.time()); 
             app.datetime = Local.from_local_datetime(&datetime).unwrap();
+            app.wrong_date = false;
         }
         Focus::Time => {
-            let time = NaiveTime::parse_from_str(&app.input_time, "%H:%M").expect("to parse time");
+            let time = match NaiveTime::parse_from_str(&app.input_time, "%H:%M") {
+                Ok(time) => time,
+                Err(_) => {
+                    app.wrong_time = true;
+                    return;
+                },
+            };
             let datetime = app.datetime.date_naive().and_time(time);
             app.datetime = Local.from_local_datetime(&datetime).unwrap();
+            app.wrong_time = false;
         }
         _ => {}
     }

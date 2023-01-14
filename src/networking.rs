@@ -58,7 +58,7 @@ pub async fn start_tokio(
                 // Acquire a lock on the App Mutex and mutate the state
                 let mut app = app.lock().await;
                 app.routes = routes.connection_list;
-                app.show_popup = false;
+                app.show_fetch_popup = false;
             }
         }
     }

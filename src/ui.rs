@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use chrono::Local;
 use itertools::Itertools;
 use tui::{
@@ -7,7 +5,7 @@ use tui::{
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Span, Spans, Text},
-    widgets::{Block, Borders, Cell, Clear, Paragraph, Row, Table, List, ListItem},
+    widgets::{Block, Borders, Cell, Clear, List, ListItem, Paragraph, Row, Table},
     Frame,
 };
 use unicode_width::UnicodeWidthStr;
@@ -44,34 +42,27 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
         .margin(0)
         .constraints(
             [
-                Constraint::Percentage(30),
-                Constraint::Percentage(30),
-                Constraint::Percentage(8),
-                Constraint::Percentage(8),
-                Constraint::Percentage(8),
-                Constraint::Percentage(8),
-                Constraint::Percentage(8),
-            ].as_ref()
+                Constraint::Percentage(25),
+                Constraint::Percentage(25),
+                Constraint::Percentage(10),
+                Constraint::Percentage(10),
+                Constraint::Percentage(10),
+                Constraint::Percentage(10),
+                Constraint::Percentage(10),
+            ]
+            .as_ref(),
         )
         .split(chunks[1]);
 
     let info_area = Layout::default()
         .direction(Direction::Horizontal)
         .margin(0)
-        .constraints(
-            [
-                Constraint::Percentage(80),
-                Constraint::Percentage(20),
-            ].as_ref()
-        )
+        .constraints([Constraint::Percentage(70), Constraint::Percentage(30)].as_ref())
         .split(chunks[2]);
 
     let table_area = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([
-            Constraint::Percentage(80),
-            Constraint::Percentage(20),
-        ])
+        .constraints([Constraint::Percentage(80), Constraint::Percentage(20)])
         .split(info_area[0]);
 
     let start_area = input_areas[0];
@@ -142,15 +133,14 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
     let notification = notifications(app, &routes_table_state);
     f.render_widget(notification, table_area[1]);
 
-
     ///// help message
-    // let help_message = help_message(app);
+    let help_message = help_message(app);
     // let help_message = Paragraph::new(Text::from(app.frames.to_string()));
-    let help_message = Paragraph::new(Text::from(app.datetime.to_string()));
+    // let help_message = Paragraph::new(Text::from(app.datetime.to_string()));
     f.render_widget(help_message, chunks[3]);
 
     ///// Popup
-    if app.show_popup {
+    if app.show_fetch_popup {
         // let block = Block::default().borders(Borders::ALL);
         let popup_area = popup_rect(10, 5, f.size());
         let block = Block::default()
@@ -165,6 +155,38 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
             );
         f.render_widget(Clear, popup_area);
         f.render_widget(block, popup_area);
+    }
+
+    if app.wrong_date {
+        let date_popup_area = popup_rect(20, 20, f.size());
+        // let block = Block::default()
+        let wrong_date_paragraph = Paragraph::new("Please enter a valid date")
+            .alignment(Alignment::Center)
+            .style(Style::default().add_modifier(Modifier::BOLD).fg(Color::Red))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Date Error")
+                    .title_alignment(Alignment::Center),
+            );
+        f.render_widget(Clear, date_popup_area);
+        f.render_widget(wrong_date_paragraph, date_popup_area);
+    }
+
+    if app.wrong_time {
+        let date_popup_area = popup_rect(20, 20, f.size());
+        // let block = Block::default()
+        let wrong_time_paragraph = Paragraph::new("Please enter a valid time")
+            .alignment(Alignment::Center)
+            .style(Style::default().add_modifier(Modifier::BOLD).fg(Color::Red))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title("Time Error")
+                    .title_alignment(Alignment::Center),
+            );
+        f.render_widget(Clear, date_popup_area);
+        f.render_widget(wrong_time_paragraph, date_popup_area);
     }
 }
 
@@ -417,12 +439,12 @@ fn routes_table(app: &App) -> Table {
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         // .highlight_symbol("> ")
         .widths(&[
-            Constraint::Percentage(16),
-            Constraint::Percentage(16),
-            Constraint::Percentage(16),
-            Constraint::Percentage(16),
-            Constraint::Percentage(16),
-            Constraint::Percentage(16),
+            Constraint::Percentage(20),
+            Constraint::Percentage(10),
+            Constraint::Percentage(14),
+            Constraint::Percentage(20),
+            Constraint::Percentage(10),
+            Constraint::Percentage(32),
         ])
 }
 
@@ -500,17 +522,20 @@ fn notifications<'a>(app: &'a App, routes_table_state: &RoutesTableState) -> Par
     let mut nots = Vec::new();
     // let mut not = "".to_string();
     for i in &app.routes {
-        let not =  prepare_info(&i.connection_part_list);
+        let not = prepare_info(&i.connection_part_list);
         nots.push(not);
     }
     let curr_not = if let Some(selected) = routes_table_state.table_state.selected() {
         &nots[selected]
-    } else { "" };
+    } else {
+        ""
+    };
 
-    Paragraph::new(Text::from(curr_not.to_string()))
-        .block(Block::default()
-        .borders(Borders::ALL)
-        .title("Notifications"))
+    Paragraph::new(Text::from(curr_not.to_string())).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Notifications"),
+    )
 }
 
 fn details_list<'a>(app: &'a App, routes_table_state: &RoutesTableState) -> List<'a> {
@@ -518,10 +543,18 @@ fn details_list<'a>(app: &'a App, routes_table_state: &RoutesTableState) -> List
     match routes_table_state.table_state.selected() {
         Some(idx) => {
             for j in &app.routes[idx].connection_part_list {
-                det.push(format!(" ╭─ {}, {}", j.from.name, j.departure.format("%H:%M")));
+                det.push(format!(
+                    " ╭─ {}, {}",
+                    j.from.name,
+                    j.departure.format("%H:%M")
+                ));
                 for k in &j.stops {
                     for l in k {
-                        det.push(format!(" ├──── {}, {}", l.location.name, l.time.format("%H:%M")));
+                        det.push(format!(
+                            " ├──── {}, {}",
+                            l.location.name,
+                            l.time.format("%H:%M")
+                        ));
                     }
                 }
                 det.push(format!(" ╰─ {}, {}", j.to.name, j.arrival.format("%H:%M")));
@@ -530,42 +563,43 @@ fn details_list<'a>(app: &'a App, routes_table_state: &RoutesTableState) -> List
         None => (),
     }
 
-    let items = det.iter().map(|x| ListItem::new(Span::raw(x.clone()))).collect::<Vec<ListItem>>();
-    List::new(items)
-        .block(Block::default().borders(Borders::ALL).title("Details"))
+    let items = det
+        .iter()
+        .map(|x| ListItem::new(Span::raw(x.clone())))
+        .collect::<Vec<ListItem>>();
+    List::new(items).block(Block::default().borders(Borders::ALL).title("Details"))
 }
 
 fn help_message(app: &App) -> Paragraph {
     let (msg, style) = match app.input_mode {
         InputMode::Normal => (
             vec![
-                Span::raw("Press "),
-                Span::styled("q", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to exit, "),
-                Span::styled("i", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to start edition."),
+                Span::styled("q: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw("Exit, "),
+                Span::styled("i: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw("Insert mode/toggle, "),
+                Span::styled("f: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw("Fetch data, "),
+                Span::styled("h/j/k/l: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw("Navigation, "),
             ],
-            Style::default().add_modifier(Modifier::RAPID_BLINK),
+            Style::default().fg(Color::Cyan),
         ),
         InputMode::Editing => (
             vec![
-                Span::raw("Press "),
-                Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to stop editing "),
-                Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to recored message"),
+                Span::styled("Esc: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw("Normal Mode "),
             ],
-            Style::default(),
+            Style::default().fg(Color::Cyan),
         ),
         InputMode::Table => (
             vec![
-                Span::raw("Press "),
-                Span::styled("Esc", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to stop editing "),
-                Span::styled("Enter", Style::default().add_modifier(Modifier::BOLD)),
-                Span::raw(" to recored message"),
+                Span::styled("Esc: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw("Stop table navigation, "),
+                Span::styled("h/j/k/l: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::raw("Navigation "),
             ],
-            Style::default(),
+            Style::default().fg(Color::Cyan),
         ),
     };
     let mut text = Text::from(Spans::from(msg));
