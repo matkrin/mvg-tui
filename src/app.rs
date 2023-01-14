@@ -1,18 +1,13 @@
-use chrono::{DateTime, Local, NaiveDate, TimeZone, NaiveTime};
+use anyhow::Result;
+use chrono::{DateTime, Local, NaiveDate, NaiveTime, TimeZone};
+use crossterm::event::{self, Event, KeyCode};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
-
-use anyhow::Result;
-use tui::Terminal;
-
-use crossterm::event::{self, Event, KeyCode};
-use tui::backend::Backend;
-use tui::widgets::TableState;
+use tui::{backend::Backend, widgets::TableState, Terminal};
 
 use crate::api::routes::Connection;
-
 use crate::networking::{start_tokio, IoEvent, RoutesParams};
 use crate::ui::ui;
 
@@ -204,7 +199,9 @@ pub async fn run_app<B: Backend>(
 }
 
 async fn handle_fetch(app: &mut App) {
-    if app.wrong_time || app.wrong_date { return; }
+    if app.wrong_time || app.wrong_date {
+        return;
+    }
     app.show_fetch_popup = true;
     if let Some(tx) = &app.io_tx {
         tx.send(IoEvent::GetRoutes(RoutesParams {
@@ -331,12 +328,12 @@ fn handle_esc(app: &mut App) {
         Focus::Date => {
             let date = match NaiveDate::parse_from_str(&app.input_date, "%d.%m.%Y") {
                 Ok(date) => date,
-                Err(_) => { 
-                    app.wrong_date = true; 
+                Err(_) => {
+                    app.wrong_date = true;
                     return;
-                },
+                }
             };
-            let datetime = date.and_time(app.datetime.time()); 
+            let datetime = date.and_time(app.datetime.time());
             app.datetime = Local.from_local_datetime(&datetime).unwrap();
             app.wrong_date = false;
         }
@@ -346,7 +343,7 @@ fn handle_esc(app: &mut App) {
                 Err(_) => {
                     app.wrong_time = true;
                     return;
-                },
+                }
             };
             let datetime = app.datetime.date_naive().and_time(time);
             app.datetime = Local.from_local_datetime(&datetime).unwrap();
