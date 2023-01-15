@@ -167,28 +167,25 @@ pub async fn run_app<B: Backend>(
             if let Event::Key(key) = event::read()? {
                 match app.input_mode {
                     InputMode::Normal => match key.code {
-                        KeyCode::Char('q') => return Ok(()), // quits app
-                        KeyCode::Char('i') => handle_i_key(&mut app),
-                        KeyCode::Char('h') => handle_h_key(&mut app),
-                        KeyCode::Char('l') => handle_l_key(&mut app),
-                        KeyCode::Char('j') => handle_j_key(&mut app),
-                        KeyCode::Char('k') => handle_k_key(&mut app),
-                        KeyCode::Char('f') => handle_fetch(&mut app).await,
+                        KeyCode::Char('q') => return Ok(()),
+                        KeyCode::Char('i') | KeyCode::Enter => handle_i_key(&mut app),
+                        KeyCode::Char('h') | KeyCode::Left => handle_h_key(&mut app),
+                        KeyCode::Char('l') | KeyCode::Right => handle_l_key(&mut app),
+                        KeyCode::Char('j') | KeyCode::Down => handle_j_key(&mut app),
+                        KeyCode::Char('k') | KeyCode::Up => handle_k_key(&mut app),
+                        KeyCode::Char('f') | KeyCode::Char(' ') => handle_fetch(&mut app).await,
                         _ => {}
                     },
                     InputMode::Editing => match key.code {
-                        // KeyCode::Enter => {
-                        //     app.messages.push(app.input_start.drain(..).collect());
-                        // }
                         KeyCode::Char(c) => handle_typing(&mut app, c),
                         KeyCode::Backspace => handle_backspace(&mut app),
-                        KeyCode::Esc => handle_esc(&mut app),
+                        KeyCode::Esc | KeyCode::Enter => handle_esc(&mut app),
                         _ => {}
                     },
                     InputMode::Table => match key.code {
-                        KeyCode::Char('j') => routes_table_state.next_table_entry(&app),
-                        KeyCode::Char('k') => routes_table_state.previous_table_entry(&app),
-                        KeyCode::Esc => app.input_mode = InputMode::Normal,
+                        KeyCode::Char('j') | KeyCode::Down => routes_table_state.next_table_entry(&app),
+                        KeyCode::Char('k') | KeyCode::Up => routes_table_state.previous_table_entry(&app),
+                        KeyCode::Esc | KeyCode::Enter => app.input_mode = InputMode::Normal,
                         _ => {}
                     },
                 }
