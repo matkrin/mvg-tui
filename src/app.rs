@@ -183,8 +183,12 @@ pub async fn run_app<B: Backend>(
                         _ => {}
                     },
                     InputMode::Table => match key.code {
-                        KeyCode::Char('j') | KeyCode::Down => routes_table_state.next_table_entry(&app),
-                        KeyCode::Char('k') | KeyCode::Up => routes_table_state.previous_table_entry(&app),
+                        KeyCode::Char('j') | KeyCode::Down => {
+                            routes_table_state.next_table_entry(&app)
+                        }
+                        KeyCode::Char('k') | KeyCode::Up => {
+                            routes_table_state.previous_table_entry(&app)
+                        }
                         KeyCode::Esc | KeyCode::Enter => app.input_mode = InputMode::Normal,
                         _ => {}
                     },

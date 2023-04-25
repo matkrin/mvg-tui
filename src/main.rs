@@ -1,8 +1,12 @@
 use std::{io, sync::Arc};
 
 use anyhow::Result;
-use crossterm::{terminal::{enable_raw_mode, EnterAlternateScreen, disable_raw_mode, LeaveAlternateScreen}, execute, event::{EnableMouseCapture, DisableMouseCapture}};
-use mvg_tui::app::{App, RoutesTableState, run_app};
+use crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture},
+    execute,
+    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+};
+use mvg_tui::app::{run_app, App, RoutesTableState};
 use tokio::sync::Mutex;
 use tui::{backend::CrosstermBackend, Terminal};
 

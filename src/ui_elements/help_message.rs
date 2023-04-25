@@ -16,21 +16,30 @@ pub fn help_message(app: &App) -> Paragraph {
                 Span::raw("Insert mode/toggle, "),
                 Span::styled("f / Space: ", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw("Fetch data, "),
-                Span::styled("hjkl / ← ↑ ↓ →: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "hjkl / ← ↑ ↓ →: ",
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
                 Span::raw("Navigation "),
             ],
             Style::default().fg(Color::Cyan),
         ),
         InputMode::Editing => (
             vec![
-                Span::styled("Esc / Enter: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "Esc / Enter: ",
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
                 Span::raw("Normal Mode "),
             ],
             Style::default().fg(Color::Cyan),
         ),
         InputMode::Table => (
             vec![
-                Span::styled("Esc / Enter: ", Style::default().add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "Esc / Enter: ",
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
                 Span::raw("Stop table navigation, "),
                 Span::styled("jk / ↑ ↓: ", Style::default().add_modifier(Modifier::BOLD)),
                 Span::raw("Navigation "),
