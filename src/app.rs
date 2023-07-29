@@ -7,7 +7,7 @@ use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
 use tui::{backend::Backend, widgets::TableState, Terminal};
 
-use crate::api::routes::Connection;
+use crate::api::routes::{ConnectionPart, Connection};
 use crate::networking::{start_tokio, IoEvent, RoutesParams};
 use crate::ui::ui;
 
@@ -208,7 +208,7 @@ async fn handle_fetch(app: &mut App) {
         tx.send(IoEvent::GetRoutes(RoutesParams {
             from: app.start.to_string(),
             to: app.destination.to_string(),
-            time: app.datetime.timestamp_millis(),
+            time: app.datetime,
             arrival: app.is_arrival,
             include_ubahn: app.use_ubahn,
             include_bus: app.use_bus,

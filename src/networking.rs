@@ -1,16 +1,17 @@
 use anyhow::Result;
+use chrono::{DateTime, Local};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::{
-    api::{get_routes, get_station, StationResponse},
+    api::{get_routes, get_station, Location},
     app::App,
 };
 
 pub struct RoutesParams {
     pub from: String,
     pub to: String,
-    pub time: i64,
+    pub time: DateTime<Local>,
     pub arrival: bool,
     pub include_ubahn: bool,
     pub include_bus: bool,
@@ -30,14 +31,14 @@ pub async fn start_tokio(
         match io_event {
             IoEvent::GetRoutes(rp) => {
                 let from = get_station(&rp.from).await?;
-                let from_id = if let StationResponse::Station(x) = &from.locations[0] {
-                    x.id.clone()
+                let from_id = if let Location::Station(x) = &from[0] {
+                    x.global_id.clone()
                 } else {
                     "".to_string()
                 };
                 let to = get_station(&rp.to).await?;
-                let to_id = if let StationResponse::Station(x) = &to.locations[0] {
-                    x.id.clone()
+                let to_id = if let Location::Station(x) = &to[0] {
+                    x.global_id.clone()
                 } else {
                     "".to_string()
                 };
@@ -46,7 +47,6 @@ pub async fn start_tokio(
                     &to_id,
                     Some(rp.time),
                     Some(rp.arrival),
-                    None,
                     Some(rp.include_ubahn),
                     Some(rp.include_bus),
                     Some(rp.include_tram),
@@ -57,7 +57,7 @@ pub async fn start_tokio(
 
                 // Acquire a lock on the App Mutex and mutate the state
                 let mut app = app.lock().await;
-                app.routes = routes.connection_list;
+                app.routes = routes;
                 app.show_fetch_popup = false;
             }
         }

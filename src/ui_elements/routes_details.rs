@@ -8,7 +8,7 @@ use tui::{
 };
 
 use crate::{
-    api::routes::{Connection, ConnectionPart},
+    api::routes::{Connection, ConnectionPart, Station},
     app::{App, Focus, InputMode, RoutesTableState},
 };
 
@@ -53,20 +53,22 @@ pub fn routes_table(app: &App) -> Table {
 
 fn prepare_routes(conn: &Connection) -> Row {
     let height = 1;
+    let origin = &conn.parts[0].from;
+    let destination = &conn.parts[conn.parts.len()-1].to;
     let time = format!(
         "{} - {}",
-        conn.departure.format("%H:%M"),
-        conn.arrival.format("%H:%M")
+        origin.planned_departure.format("%H:%M"),
+        destination.planned_departure.format("%H:%M")
     );
-    let in_minutes = (conn.departure.time() - Local::now().time())
+    let in_minutes = (origin.planned_departure.time() - Local::now().time())
         .num_minutes()
         .to_string();
-    let duration = (conn.arrival.time() - conn.departure.time())
+    let duration = (destination.planned_departure.time() - origin.planned_departure.time())
         .num_minutes()
         .to_string();
-    let lines = prepare_lines(&conn.connection_part_list);
-    let delay = prepare_delay(&conn.connection_part_list);
-    let info = prepare_info(&conn.connection_part_list);
+    let lines = prepare_lines(&conn.parts);
+    let delay = prepare_delay(&origin);
+    let info = prepare_info(&conn.parts);
     let cells = vec![time, in_minutes, duration, lines, delay, info];
     Row::new(cells)
         .height(height as u16)
@@ -77,46 +79,30 @@ fn prepare_routes(conn: &Connection) -> Row {
 fn prepare_lines(cp_list: &Vec<ConnectionPart>) -> String {
     let mut lines = Vec::new();
     for cp in cp_list.iter() {
-        if cp.connection_part_type == "FOOTWAY" {
+        if cp.line.label == "FOOTWAY" {
             lines.push("walk");
         } else {
-            let label = if let Some(x) = &cp.label { x } else { "" };
-            lines.push(label);
+            lines.push(&cp.line.label);
         }
     }
     lines.iter().unique().join(", ")
 }
 
-fn prepare_delay(cp_list: &Vec<ConnectionPart>) -> String {
-    let mut delay = if let Some(x) = cp_list[0].delay {
-        x.to_string()
-    } else {
-        "-".to_string()
+fn prepare_delay(origin_station: &Station) -> String {
+    let delay = match origin_station.departure_delay_in_minutes {
+        Some(d) if d != 0 => d.to_string(),
+        _ => "-".to_string(),
+
     };
-    if delay == "0" {
-        delay = "-".to_string();
-    }
     delay
 }
 
 fn prepare_info(cp_list: &Vec<ConnectionPart>) -> String {
     let mut info = "".to_string();
     for cp in cp_list.iter() {
-        let label = if let Some(x) = &cp.label { x } else { "" };
-        let nots = if let Some(x) = &cp.notifications {
-            x.iter().map(|n| n.title.clone()).collect()
-        } else {
-            "".to_string()
-        };
-        if nots == "" {
-            info = if let Some(x) = &cp.info_messages {
-                x.join("\n")
-            } else {
-                "".to_string()
-            };
-        } else {
-            info = format!("{}: {}", label, nots);
-        }
+        let label = cp.line.label.clone();
+        let messages = cp.messages.join("\n");
+        info.push_str(&format!("{}: {}", label, messages));
     }
     info
 }
@@ -125,7 +111,7 @@ pub fn notifications<'a>(app: &'a App, routes_table_state: &RoutesTableState) ->
     let mut nots = Vec::new();
     // let mut not = "".to_string();
     for i in &app.routes {
-        let not = prepare_info(&i.connection_part_list);
+        let not = prepare_info(&i.parts);
         nots.push(not);
     }
     let curr_not = if let Some(selected) = routes_table_state.table_state.selected() {
@@ -145,22 +131,22 @@ pub fn details_list<'a>(app: &'a App, routes_table_state: &RoutesTableState) -> 
     let mut det = Vec::new();
     match routes_table_state.table_state.selected() {
         Some(idx) => {
-            for j in &app.routes[idx].connection_part_list {
+            for j in &app.routes[idx].parts {
                 det.push(format!(
                     " ╭─ {}, {}",
                     j.from.name,
-                    j.departure.format("%H:%M")
+                    j.from.planned_departure.format("%H:%M")
                 ));
-                for k in &j.stops {
-                    for l in k {
+                for k in &j.intermediate_stops {
+                    // for l in k {
                         det.push(format!(
                             " ├──── {}, {}",
-                            l.location.name,
-                            l.time.format("%H:%M")
+                            k.name,
+                            k.planned_departure.format("%H:%M")
                         ));
-                    }
+                    // }
                 }
-                det.push(format!(" ╰─ {}, {}", j.to.name, j.arrival.format("%H:%M")));
+                det.push(format!(" ╰─ {}, {}", j.to.name, j.to.planned_departure.format("%H:%M")));
             }
         }
         None => (),
