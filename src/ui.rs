@@ -103,11 +103,11 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
     f.render_stateful_widget(routes, table_area[0], &mut routes_table_state.table_state);
 
     // Routes details
-    let details = details_list(app, &routes_table_state);
+    let details = details_list(app, routes_table_state);
     f.render_widget(details, info_area[1]);
 
     // Notification area
-    let notification = notifications(app, &routes_table_state);
+    let notification = notifications(app, routes_table_state);
     f.render_widget(notification, table_area[1]);
 
     // Help message
@@ -151,8 +151,8 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
     }
 
     // Cursor position
-    match app.input_mode {
-        InputMode::Editing => match app.focus {
+    if let InputMode::Editing = app.input_mode {
+        match app.focus {
             Focus::Start => f.set_cursor(
                 input_areas[0].x + app.input_start.width() as u16 + 1,
                 input_areas[0].y + 1,
@@ -170,7 +170,6 @@ pub fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App, routes_table_state: &mut 
                 options_areas[1].y + 1,
             ),
             _ => {}
-        },
-        _ => {}
+        }
     }
 }

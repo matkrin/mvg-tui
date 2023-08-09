@@ -8,9 +8,7 @@ use tui::{
     widgets::{Block, Borders, Cell, List, ListItem, Paragraph, Row, Table},
 };
 
-use crate::{
-    app::{App, Focus, InputMode, RoutesTableState},
-};
+use crate::app::{App, Focus, InputMode, RoutesTableState};
 
 pub fn routes_table(app: &App) -> Table {
     let header_cells = ["TIME", "IN", "DURATION", "LINES", "DELAY", "INFO"]
@@ -54,7 +52,7 @@ pub fn routes_table(app: &App) -> Table {
 fn prepare_routes(conn: &Connection) -> Row {
     let height = 1;
     let origin = &conn.parts[0].from;
-    let destination = &conn.parts[conn.parts.len()-1].to;
+    let destination = &conn.parts[conn.parts.len() - 1].to;
     let time = format!(
         "{} - {}",
         origin.planned_departure.format("%H:%M"),
@@ -67,7 +65,7 @@ fn prepare_routes(conn: &Connection) -> Row {
         .num_minutes()
         .to_string();
     let lines = prepare_lines(&conn.parts);
-    let delay = prepare_delay(&origin);
+    let delay = prepare_delay(origin);
     let info = prepare_info(&conn.parts);
     let cells = vec![time, in_minutes, duration, lines, delay, info];
     Row::new(cells)
@@ -89,12 +87,10 @@ fn prepare_lines(cp_list: &[ConnectionPart]) -> String {
 }
 
 fn prepare_delay(origin_station: &Station) -> String {
-    let delay = match origin_station.departure_delay_in_minutes {
+    match origin_station.departure_delay_in_minutes {
         Some(d) if d != 0 => d.to_string(),
         _ => "-".to_string(),
-
-    };
-    delay
+    }
 }
 
 fn prepare_info(cp_list: &[ConnectionPart]) -> String {
@@ -129,27 +125,28 @@ pub fn notifications<'a>(app: &'a App, routes_table_state: &RoutesTableState) ->
 
 pub fn details_list<'a>(app: &'a App, routes_table_state: &RoutesTableState) -> List<'a> {
     let mut det = Vec::new();
-    match routes_table_state.table_state.selected() {
-        Some(idx) => {
-            for j in &app.routes[idx].parts {
+    if let Some(idx) = routes_table_state.table_state.selected() {
+        for j in &app.routes[idx].parts {
+            det.push(format!(
+                " ╭─ {}, {}",
+                j.from.name,
+                j.from.planned_departure.format("%H:%M")
+            ));
+            for k in &j.intermediate_stops {
+                // for l in k {
                 det.push(format!(
-                    " ╭─ {}, {}",
-                    j.from.name,
-                    j.from.planned_departure.format("%H:%M")
+                    " ├──── {}, {}",
+                    k.name,
+                    k.planned_departure.format("%H:%M")
                 ));
-                for k in &j.intermediate_stops {
-                    // for l in k {
-                        det.push(format!(
-                            " ├──── {}, {}",
-                            k.name,
-                            k.planned_departure.format("%H:%M")
-                        ));
-                    // }
-                }
-                det.push(format!(" ╰─ {}, {}", j.to.name, j.to.planned_departure.format("%H:%M")));
+                // }
             }
+            det.push(format!(
+                " ╰─ {}, {}",
+                j.to.name,
+                j.to.planned_departure.format("%H:%M")
+            ));
         }
-        None => (),
     }
 
     let items = det

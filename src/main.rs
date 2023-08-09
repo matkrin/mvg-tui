@@ -32,7 +32,6 @@ async fn run_tui() -> Result<()> {
 
     if let Err(err) = res {
         println!("{:?}", err);
-        ()
     }
 
     Ok(())

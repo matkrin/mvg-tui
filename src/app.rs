@@ -157,7 +157,7 @@ pub async fn run_app<B: Backend>(
 ) -> Result<()> {
     let cloned_app = Arc::clone(&app);
     tokio::spawn(async move {
-        start_tokio(&app, rx).await;
+        _ = start_tokio(&app, rx).await;
     });
     loop {
         let mut app = cloned_app.lock().await;
@@ -205,7 +205,7 @@ async fn handle_fetch(app: &mut App) {
     }
     app.show_fetch_popup = true;
     if let Some(tx) = &app.io_tx {
-        tx.send(IoEvent::GetRoutes(RoutesParams {
+        _ = tx.send(IoEvent::GetRoutes(RoutesParams {
             from: app.start.to_string(),
             to: app.destination.to_string(),
             time: app.datetime,
