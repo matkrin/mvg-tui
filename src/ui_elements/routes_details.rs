@@ -76,7 +76,7 @@ fn prepare_routes(conn: &Connection) -> Row {
         .style(Style::default())
 }
 
-fn prepare_lines(cp_list: &Vec<ConnectionPart>) -> String {
+fn prepare_lines(cp_list: &[ConnectionPart]) -> String {
     let mut lines = Vec::new();
     for cp in cp_list.iter() {
         if cp.line.label == "FOOTWAY" {
@@ -97,7 +97,7 @@ fn prepare_delay(origin_station: &Station) -> String {
     delay
 }
 
-fn prepare_info(cp_list: &Vec<ConnectionPart>) -> String {
+fn prepare_info(cp_list: &[ConnectionPart]) -> String {
     let mut info = "".to_string();
     for cp in cp_list.iter() {
         let label = cp.line.label.clone();
