@@ -1,5 +1,6 @@
 use chrono::Local;
 use itertools::Itertools;
+use mvg_api::routes::{Connection, ConnectionPart, Station};
 use tui::{
     layout::Constraint,
     style::{Color, Modifier, Style},
@@ -8,7 +9,6 @@ use tui::{
 };
 
 use crate::{
-    api::routes::{Connection, ConnectionPart, Station},
     app::{App, Focus, InputMode, RoutesTableState},
 };
 

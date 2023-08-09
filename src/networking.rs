@@ -3,10 +3,8 @@ use chrono::{DateTime, Local};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::{
-    api::{get_routes, get_station, Location},
-    app::App,
-};
+use crate::app::App;
+use mvg_api::{get_routes, get_station, Location};
 
 pub struct RoutesParams {
     pub from: String,

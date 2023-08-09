@@ -1,4 +1,3 @@
-pub mod api;
 pub mod app;
 pub mod networking;
 pub mod ui;

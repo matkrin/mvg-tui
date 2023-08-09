@@ -1,13 +1,13 @@
 use anyhow::Result;
 use chrono::{DateTime, Local, NaiveDate, NaiveTime, TimeZone};
 use crossterm::event::{self, Event, KeyCode};
+use mvg_api::routes::Connection;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::{Receiver, Sender};
 use tokio::sync::Mutex;
 use tui::{backend::Backend, widgets::TableState, Terminal};
 
-use crate::api::routes::{ConnectionPart, Connection};
 use crate::networking::{start_tokio, IoEvent, RoutesParams};
 use crate::ui::ui;
 
